@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Tote Board Scanner — Edge Over Luck</title>
+<meta name="description" content="Snap a photo of any horse racing odds board and get instant verified math: implied probabilities, effective takeout, fair odds, and exotic ticket costs." />
+<link rel="stylesheet" href="css/style.css" />
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "Tote Board Scanner",
+  "applicationCategory": "UtilitiesApplication",
+  "operatingSystem": "Any",
+  "description": "AI-powered horse racing odds analysis. Scan a tote board, ADW screen, TV graphic, or program to get implied probabilities, effective takeout, fair odds, and exotic ticket costs.",
+  "offers": {
+    "@type": "Offer",
+    "price": "0",
+    "priceCurrency": "USD"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Edge Over Luck",
+    "url": "https://edgeoverluck.com"
+  }
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {
+      "@type": "Question",
+      "name": "Does the Tote Board Scanner predict winners?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "No. It provides math analysis of displayed odds — implied probability, effective takeout, and fair odds — not picks or guarantees."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Why is implied probability shown as a range on tote boards?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Tote board odds are displayed rounded down. A board showing 5/2 could reflect true odds anywhere from 2.5 to just under 3, so the tool shows the honest range instead of a false-precision single number."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Are exotic ticket costs exact?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Yes. Exacta, trifecta, and superfecta box, key, and wheel costs are computed by enumerating every valid combination, not shortcut formulas, so overlapping position groups are always counted correctly."
+      }
+    }
+  ]
+}
+</script>
+</head>
+<body>
+<header class="site-header">
+  <a class="brand" href="https://edgeoverluck.com">Edge Over <span>Luck</span></a>
+  <nav>
+    <a href="https://edgeoverluck.com">Workbook</a>
+  </nav>
+</header>
+
+<main>
+  <h1>Tote Board Scanner</h1>
+  <p class="subtitle">Scan any odds display for instant verified math — implied probability, effective takeout, fair odds, and exotic ticket costs.</p>
+
+  <section class="panel" id="upload-panel">
+    <h2>1. Scan the board</h2>
+    <div class="upload-area" id="upload-area">
+      <strong>Tap to take a photo or choose a screenshot</strong>
+      <p>Tote board, ADW app, TV graphic, or program</p>
+    </div>
+    <input type="file" id="file-input" accept="image/*" capture="environment" hidden />
+    <img id="upload-preview" class="upload-preview" alt="Uploaded odds board preview" />
+    <div class="btn-row">
+      <button class="btn" id="scan-btn" disabled>Scan Odds</button>
+      <button class="btn secondary" id="reset-upload-btn" style="display:none;">Choose Different Image</button>
+    </div>
+    <div id="upload-error" class="error-box" style="display:none; margin-top:14px;"></div>
+  </section>
+
+  <section class="panel hidden" id="review-panel">
+    <h2>2. Confirm the extraction</h2>
+    <p class="subtitle" id="review-source-type"></p>
+    <div class="table-scroll">
+      <table id="review-table">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Odds</th>
+            <th>Confidence</th>
+          </tr>
+        </thead>
+        <tbody id="review-tbody"></tbody>
+      </table>
+    </div>
+    <p id="review-notes" class="disclaimer" style="display:none;"></p>
+    <div class="btn-row">
+      <button class="btn" id="confirm-btn">Confirm &amp; Analyze</button>
+      <button class="btn secondary" id="back-to-upload-btn">Start Over</button>
+    </div>
+  </section>
+
+  <section class="panel hidden" id="results-panel">
+    <h2>3. Win analysis</h2>
+    <p class="timestamp" id="results-timestamp"></p>
+    <div class="stat-row">
+      <div class="stat">
+        <div class="label">Overround</div>
+        <div class="value" id="stat-overround">—</div>
+      </div>
+      <div class="stat">
+        <div class="label">Effective takeout</div>
+        <div class="value" id="stat-takeout">—</div>
+      </div>
+    </div>
+    <div class="table-scroll">
+      <table id="results-table">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Odds</th>
+            <th>Implied %</th>
+            <th>Fair Odds</th>
+            <th>Your Est. %</th>
+            <th>Δ</th>
+          </tr>
+        </thead>
+        <tbody id="results-tbody"></tbody>
+      </table>
+    </div>
+    <div class="btn-row">
+      <button class="btn" id="share-btn">Share Results Image</button>
+    </div>
+    <div class="disclaimer">
+      <p>Snapshot taken <span id="disclaimer-time"></span>. Board odds change until post.</p>
+      <p>Estimates assume displayed odds; board odds are rounded down where applicable.</p>
+      <p>This tool provides math analysis, not picks or guarantees. Please gamble responsibly.</p>
+    </div>
+  </section>
+
+  <section class="panel hidden" id="exotics-panel">
+    <h2>4. Exotic ticket cost calculator</h2>
+    <div class="field-row">
+      <label for="exotic-type">Bet type</label>
+      <select id="exotic-type">
+        <option value="2">Exacta</option>
+        <option value="3">Trifecta</option>
+        <option value="4">Superfecta</option>
+      </select>
+      <label for="exotic-structure">Structure</label>
+      <select id="exotic-structure">
+        <option value="box">Box</option>
+        <option value="key">Key</option>
+        <option value="wheel">Wheel</option>
+      </select>
+      <label for="exotic-base">Base bet</label>
+      <select id="exotic-base">
+        <option value="0.1">$0.10</option>
+        <option value="0.5">$0.50</option>
+        <option value="1" selected>$1</option>
+        <option value="2">$2</option>
+      </select>
+    </div>
+    <div id="exotic-builder"></div>
+    <div class="stat-row">
+      <div class="stat">
+        <div class="label">Combinations</div>
+        <div class="value" id="exotic-combos">0</div>
+      </div>
+      <div class="stat">
+        <div class="label">Ticket cost</div>
+        <div class="value" id="exotic-cost">$0.00</div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer class="site-footer">
+  <p>Odds move until post — every result here is a timestamped snapshot, not a live feed. Check your track's phone-use policies. This tool provides math analysis, not picks or guarantees.</p>
+  <p>Part of <a href="https://edgeoverluck.com">Edge Over Luck</a> — the math is the edge.</p>
+</footer>
+
+<script type="module" src="js/app.js"></script>
+</body>
+</html>
