@@ -1,0 +1,194 @@
+/* Tote Board Scanner — page-specific rules layered on top of the shared
+   Edge Over Luck design system (css/style.css). Everything here scopes to
+   .scanner-tool-page so it never leaks onto other site pages. */
+
+.scanner-tool-page .hidden {
+  display: none !important;
+}
+
+.scanner-tool-page .scanner-panel {
+  margin-bottom: 20px;
+}
+
+.scanner-tool-page .scanner-panel:last-child {
+  margin-bottom: 0;
+}
+
+.scanner-tool-page .upload-area {
+  border: 2px dashed rgba(241, 196, 91, 0.4);
+  border-radius: var(--radius-sm);
+  padding: 32px 16px;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color var(--transition-smooth);
+}
+
+.scanner-tool-page .upload-area:hover,
+.scanner-tool-page .upload-area.dragover {
+  border-color: var(--gold);
+}
+
+.scanner-tool-page .upload-preview {
+  max-width: 100%;
+  max-height: 340px;
+  border-radius: var(--radius-sm);
+  margin-top: 14px;
+  display: none;
+  border: 1px solid var(--glass-border);
+}
+
+.scanner-tool-page .scanner-error {
+  margin-top: 14px;
+}
+
+.scanner-tool-page .table-scroll {
+  overflow-x: auto;
+  margin: 16px 0;
+}
+
+.scanner-tool-page table.scanner-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.92rem;
+}
+
+.scanner-tool-page table.scanner-table th,
+.scanner-tool-page table.scanner-table td {
+  padding: 10px 8px;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+
+.scanner-tool-page table.scanner-table th {
+  color: var(--muted);
+  font-weight: 700;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.scanner-tool-page table.scanner-table tr.row-low-confidence td,
+.scanner-tool-page table.scanner-table tr.row-medium-confidence td {
+  background: rgba(241, 196, 91, 0.08);
+}
+
+.scanner-tool-page table.scanner-table input {
+  width: 100%;
+  min-width: 70px;
+  padding: 8px 10px;
+}
+
+.scanner-tool-page .badge {
+  display: inline-block;
+  font-size: 0.7rem;
+  font-weight: 800;
+  padding: 3px 9px;
+  border-radius: 999px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.scanner-tool-page .badge.check {
+  background: var(--gold);
+  color: #0b0b0d;
+}
+
+.scanner-tool-page .badge.overlay {
+  background: var(--success);
+  color: #0b0b0d;
+}
+
+.scanner-tool-page .badge.underlay {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--muted);
+}
+
+.scanner-tool-page .scanner-stat-row {
+  display: flex;
+  gap: 24px;
+  flex-wrap: wrap;
+  margin: 16px 0;
+}
+
+.scanner-tool-page .scanner-stat span {
+  display: block;
+  color: var(--muted);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.scanner-tool-page .scanner-stat strong {
+  display: block;
+  margin-top: 4px;
+  color: var(--gold);
+  font-size: 1.4rem;
+  line-height: 1.1;
+}
+
+.scanner-tool-page .scanner-disclaimer {
+  border-left: 4px solid var(--gold);
+  padding: 14px 16px;
+  border-radius: 14px;
+  background: rgba(241, 196, 91, 0.09);
+  color: var(--muted);
+  font-size: 0.88rem;
+  line-height: 1.6;
+  margin-top: 16px;
+}
+
+.scanner-tool-page .scanner-disclaimer p {
+  margin: 0 0 6px;
+}
+
+.scanner-tool-page .scanner-disclaimer p:last-child {
+  margin-bottom: 0;
+}
+
+.scanner-tool-page .scanner-exotic-controls {
+  margin-bottom: 16px;
+}
+
+.scanner-tool-page .selection-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(46px, 1fr));
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.scanner-tool-page .grid-toggle {
+  min-height: 44px;
+  min-width: 44px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: #10141c;
+  color: var(--text);
+  font-weight: 700;
+  cursor: pointer;
+  transition: border-color var(--transition-smooth), background var(--transition-smooth);
+}
+
+.scanner-tool-page .grid-toggle.active {
+  background: var(--gold);
+  color: #0b0b0d;
+  border-color: var(--gold);
+}
+
+.scanner-tool-page .position-block {
+  margin-bottom: 18px;
+}
+
+.scanner-tool-page .position-label {
+  font-size: 0.82rem;
+  color: var(--muted);
+  margin-bottom: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+@media (max-width: 760px) {
+  .scanner-tool-page .scanner-exotic-controls {
+    grid-template-columns: 1fr;
+  }
+}

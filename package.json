@@ -1,0 +1,9 @@
+{
+  "name": "tote-board-scanner",
+  "private": true,
+  "version": "1.0.0",
+  "description": "AI-powered horse racing odds analysis for EdgeOverLuck.com",
+  "engines": {
+    "node": ">=18"
+  }
+}
