@@ -1,6 +1,6 @@
 ---
 name: verify-racing-math
-description: Use this skill after any change to js/odds.js, js/analysis.js, or js/exotics.js, or whenever asked to "verify the math", "check parity with the Python verifier", "run the math verifier", or "make sure the odds/analysis/exotics engine still passes". Explains the JS/Python parity architecture and the exact steps to confirm a math change is safe to ship.
+description: Use this skill after any change to js/odds.js, js/analysis.js, js/exotics.js, js/bankroll.js, js/roulette.js, js/blackjack.js, or js/slots.js, or whenever asked to "verify the math", "check parity with the Python verifier", "run the math verifier", or "make sure the odds/analysis/exotics/bankroll/roulette/blackjack/slots engine still passes". Explains the JS/Python parity architecture and the exact steps to confirm a math change is safe to ship.
 ---
 
 # Verify Racing Math
@@ -13,22 +13,29 @@ only runs `pytest` against the Python side. This means a JS-only change can pass
 check while silently drifting from what the verifier certifies. Treat that gap as the thing this
 skill exists to close.
 
-## The three parity pairs
+## The parity pairs
 
 | JS module | Python mirror | Tests |
 |---|---|---|
 | `js/odds.js` | `verifier/odds.py` | `verifier/test_odds.py` |
 | `js/analysis.js` | `verifier/analysis.py` | `verifier/test_analysis.py` |
 | `js/exotics.js` | `verifier/exotics.py` | `verifier/test_exotics.py` |
+| `js/bankroll.js` | `verifier/bankroll.py` | `verifier/test_bankroll.py` |
+| `js/roulette.js` | `verifier/roulette.py` | `verifier/test_roulette.py` |
+| `js/blackjack.js` | `verifier/blackjack.py` | `verifier/test_blackjack.py` |
+| `js/slots.js` | `verifier/slots.py` | `verifier/test_slots.py` |
 
-`mcp-app/server.ts` imports the JS modules directly rather than reimplementing them, so it inherits
-whatever correctness the JS side has — it does not need its own verifier entry, but it does mean a
-JS bug reaches the MCP tools too.
+`mcp-app/tools/*.ts` import the JS modules directly rather than reimplementing them, so they
+inherit whatever correctness the JS side has — they don't need their own verifier entries, but it
+does mean a JS bug reaches the MCP tools too. `mcp-app/tools/shared.ts` holds the one shared
+ticket-pricing function (`resolveWagerCost`) used by every tool that costs out a box/key/wheel
+ticket — a bug fixed there is fixed everywhere at once, and conversely a change there needs the
+same scrutiny as a change to `js/exotics.js` itself.
 
 ## Steps
 
 1. **Identify what changed.** Any edit to a formula, edge-case branch, or the shape of a returned
-   value in one of the three JS modules above needs a matching Python change.
+   value in one of the JS modules above needs a matching Python change.
 2. **Port the change to the matching `verifier/*.py` file.** Match behavior exactly, including edge
    cases (empty input, zero/negative values, non-finite results, unparseable strings). Prefer
    idiomatic Python over literal transliteration, but never let the *behavior* diverge.
@@ -66,6 +73,17 @@ JS bug reaches the MCP tools too.
   overlapping key/wheel groups break naive multiplication. Watch for duplicate horse numbers within
   a single position's group (inflates the count) and unbounded input sizes (bound the work *before*
   enumerating, not just the displayed output).
+- **Kelly criterion**: `f* = winProb - (1-winProb)/b`, `b = decimalOdds - 1`, clamped to 0 when
+  negative. No risk-of-ruin probability is computed (deliberately — see `js/bankroll.js`'s header
+  comment for why).
+- **Roulette**: `payout = 36/numbersCovered - 1` to one; house edge is `1 - 36/pocketCount`
+  identically across every standard bet type on a given wheel (American 38 pockets, European 37).
+- **Blackjack house edge**: an approximation (baseline + rule adjustments), not exact — this is the
+  one module where "verify" means "confirm the adjustment table's arithmetic is internally
+  consistent," not "confirm it matches real-world edge to the basis point." Never let a change make
+  it look more precise than it is.
+- **Slots**: `expectedLoss = bet * (1 - RTP)`; RTP is always a required caller input, never derived
+  or defaulted, since it's set by hidden reel weightings.
 
 ## Common mistakes to avoid
 

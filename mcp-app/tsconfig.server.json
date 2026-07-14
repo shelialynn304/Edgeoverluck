@@ -11,5 +11,5 @@
     "resolveJsonModule": true,
     "allowJs": true
   },
-  "include": ["server.ts", "main.ts", "../js/**/*.js"]
+  "include": ["server.ts", "main.ts", "tools/**/*.ts", "../js/**/*.js"]
 }

@@ -3,27 +3,36 @@ name: add-mcp-tool
 description: Use this skill when adding a new tool to mcp-app/ (the tote-board-scanner's MCP App), or reviewing/extending an existing one. Covers this project's established pattern of reusing js/*.js math directly, the shared UI dispatch convention, and the input-validation/safety checklist learned from real review findings (duplicate-input bugs, unbounded enumeration/DoS, XSS via innerHTML). For general MCP Apps SDK mechanics (registerAppTool, App lifecycle, CSP), see the create-mcp-app / add-app-to-server skills instead — this one is specific to conventions already established in this repo's mcp-app/.
 ---
 
-# Add an MCP Tool to tote-board-scanner's mcp-app/
+# Add an MCP Tool to the Edge Over Luck mcp-app/
 
-`mcp-app/server.ts` currently registers two tools (`analyze-odds`, `exotic-ticket-cost`) that share
-one UI resource. Follow the same conventions for a new tool rather than inventing a new pattern.
+`mcp-app/server.ts` is a thin composition root: it just calls one `registerXxxTool(server)` per
+tool (one file per tool under `mcp-app/tools/`) and registers the shared UI resource. Add a new
+tool as a new `mcp-app/tools/yourTool.ts` file exporting `registerYourTool(server)`, then wire it
+into `server.ts` — don't grow `server.ts` itself or another tool's file with unrelated logic.
+
+`mcp-app/tools/shared.ts` holds cross-tool building blocks: `RESOURCE_URI`, `errorResult`,
+`findDuplicates`, the enumeration-budget helpers, and — importantly — `wagerSchema` +
+`resolveWagerCost`, the one shared implementation of box/key/wheel validation and pricing used by
+every ticket-costing tool (`exotic-ticket-cost`, `compare-exotic-tickets`, `review-wager-plan`).
+Reuse it rather than re-deriving ticket math per tool.
 
 ## Reuse the JS math modules directly — don't reimplement
 
-Import from `../js/*.js` (e.g. `parseOddsDisplay` from `../js/odds.js`, `computeWinAnalysis` from
-`../js/analysis.js`, `boxCost`/`keyCost`/`wheelCost` from `../js/exotics.js`). These are plain ESM
-modules with no DOM dependency, so they run fine in Node. This keeps the MCP tool's math identical
-to the web app's and the Python-verified engine — a fourth divergent copy of racing math is exactly
-what `verify-racing-math` exists to prevent. If your new tool needs math that doesn't exist yet in
+Import from `../../js/*.js` (e.g. `parseOddsDisplay` from `../../js/odds.js`, `computeWinAnalysis`
+from `../../js/analysis.js`, `boxCost`/`keyCost`/`wheelCost` from `../../js/exotics.js`, and
+similarly for `bankroll.js`/`roulette.js`/`blackjack.js`/`slots.js`). These are plain ESM modules
+with no DOM dependency, so they run fine in Node. This keeps the MCP tool's math identical to the
+web app's and the Python-verified engine — a divergent copy of the math is exactly what
+`verify-racing-math` exists to prevent. If your new tool needs math that doesn't exist yet in
 `js/`, add it there first (and mirror it into `verifier/`, per that skill) rather than writing it
-inline in `server.ts`.
+inline in a tool file.
 
 ## `structuredContent.kind` must match the tool name
 
-Both tools' `structuredContent` include a `kind` field whose value is the tool's own name
-(`"odds-analysis"` for `analyze-odds`, `"exotic-ticket-cost"` for `exotic-ticket-cost`) — not an ad
-hoc label. `mcp-app/src/mcp-app.ts` dispatches purely on this field to decide which renderer draws
-into the shared `#app-root`. When adding a tool:
+Every tool's `structuredContent` includes a `kind` field whose value is the tool's own name (e.g.
+`"odds-analysis"` for `analyze-odds`, `"roulette-bet-analysis"` for `roulette-bet-analysis`) — not
+an ad hoc label. `mcp-app/src/mcp-app.ts` dispatches purely on this field to decide which renderer
+draws into the shared `#app-root`. When adding a tool:
 
 1. Give its `structuredContent.kind` a value matching the tool's name.
 2. Add a matching `interface` in `mcp-app/src/mcp-app.ts`, include it in the `ToolResultPayload`

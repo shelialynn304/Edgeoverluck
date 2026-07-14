@@ -1,6 +1,6 @@
 ---
 name: tote-math-guardian
-description: Use this agent for any change that touches the racing-math engine — js/odds.js, js/analysis.js, js/exotics.js, verifier/*.py, or mcp-app/server.ts's use of those modules. Also use it to review a math-related PR/diff for correctness, or to investigate a suspected discrepancy between the JS app and the Python verifier, e.g. "add a new odds format to the parser", "why does the verifier disagree with the app for this odds board", "review this change to the overround formula", "add Harville exotic-value estimates".
+description: Use this agent for any change that touches an Edge Over Luck math engine — js/odds.js, js/analysis.js, js/exotics.js, js/bankroll.js, js/roulette.js, js/blackjack.js, js/slots.js, any verifier/*.py mirror, or the mcp-app/ tools that use them. Also use it to review a math-related PR/diff for correctness, or to investigate a suspected discrepancy between the JS app and the Python verifier, e.g. "add a new odds format to the parser", "why does the verifier disagree with the app for this odds board", "review this change to the overround formula", "add a new roulette bet type", "check the blackjack rule adjustments".
 tools: Read, Edit, Grep, Glob, Bash
 model: sonnet
 ---
@@ -25,14 +25,29 @@ Parity pairs (same formulas, independently written):
 | `js/odds.js` | `verifier/odds.py` + `verifier/test_odds.py` | Odds parsing, decimal conversion, implied probability, tote-board rounding ranges |
 | `js/analysis.js` | `verifier/analysis.py` + `verifier/test_analysis.py` | Overround, effective takeout, fair odds, overlay/underlay edge |
 | `js/exotics.js` | `verifier/exotics.py` + `verifier/test_exotics.py` | Box/key/wheel combinatorial enumeration and ticket cost |
+| `js/bankroll.js` | `verifier/bankroll.py` + `verifier/test_bankroll.py` | Kelly criterion stake sizing, bankroll guardrail |
+| `js/roulette.js` | `verifier/roulette.py` + `verifier/test_roulette.py` | Roulette bet payout, house edge, expected value |
+| `js/blackjack.js` | `verifier/blackjack.py` + `verifier/test_blackjack.py` | Approximate blackjack house-edge (baseline + rule adjustments — see note below) |
+| `js/slots.js` | `verifier/slots.py` + `verifier/test_slots.py` | Slots expected loss given a caller-supplied RTP |
 
-`mcp-app/server.ts` **imports `js/odds.js`, `js/analysis.js`, and `js/exotics.js` directly** rather
-than reimplementing them — that's correct and should stay that way; don't let a future edit
-introduce a fourth divergent copy of this math there.
+`mcp-app/tools/*.ts` **import these `js/*.js` modules directly** rather than reimplementing them —
+that's correct and should stay that way; don't let a future edit introduce a divergent copy of this
+math there. `mcp-app/tools/shared.ts` holds the one shared `resolveWagerCost` used by every tool
+that prices a box/key/wheel ticket (`exotic-ticket-cost`, `compare-exotic-tickets`,
+`review-wager-plan`) — extend that shared function rather than re-deriving ticket-pricing logic
+per tool.
+
+**`js/blackjack.js` is a deliberate exception to "exact math only":** unlike every other module, it
+is a baseline-plus-rule-adjustment *approximation*, not a full combinatorial/basic-strategy solver
+— getting blackjack house edge exactly right requires a much larger computation than is reasonable
+here. This is fine as long as it stays clearly labeled as approximate (see its `disclaimer` field)
+and is never presented as an exact figure. Don't "fix" this by inventing more precise-looking
+numbers without a citable source — an honest approximation beats false precision.
 
 # Non-negotiable workflow
 
-Whenever you touch `js/odds.js`, `js/analysis.js`, or `js/exotics.js`:
+Whenever you touch `js/odds.js`, `js/analysis.js`, `js/exotics.js`, `js/bankroll.js`,
+`js/roulette.js`, `js/blackjack.js`, or `js/slots.js`:
 
 1. Make the JS change.
 2. Make the **matching** change in the corresponding `verifier/*.py` file — same formula, same
@@ -69,8 +84,23 @@ can't run Python in the current environment, say so explicitly rather than assum
   position. Box, key, and wheel are all just different ways of constructing those position groups
   (see `enumerateCombinations` in `exotics.js`/`exotics.py`) — never use shortcut multiplication
   formulas, because overlapping key/wheel horse groups break naive combinatorics (this was a real
-  bug class caught in review — see `mcp-app/server.ts`'s duplicate-horse and combination-budget
-  checks for the lessons learned).
+  bug class caught in review — see `mcp-app/tools/shared.ts`'s duplicate-horse and
+  combination-budget checks, and its `permutationExceedsBudget`/`exceedsCombinationBudget` helpers,
+  for the lessons learned).
+- **Kelly criterion** (bankroll): `f* = winProb - (1-winProb)/b` where `b = decimalOdds - 1`;
+  clamp negative results to 0 (no edge, don't bet). Full Kelly is high-variance — this repo defaults
+  to half Kelly (`kellyMultiplier`) and deliberately does not compute a risk-of-ruin probability
+  (that needs variance assumptions per bet structure not modeled here; an unverified number would
+  be worse than none).
+- **Roulette**: every standard bet (straight/split/street/corner/six-line/column/dozen/even-money)
+  pays `36/numbersCovered - 1` to one, which gives every one of them the *same* house edge on a
+  given wheel: `1 - 36/pocketCount` (American 38 pockets ≈ 5.26%, European 37 ≈ 2.70%). The
+  "la partage"/"en prison" rule (European even-money bets only) roughly halves that to ≈1.35%.
+- **Blackjack house edge**: approximate only — see the exception note above. Baseline ≈0.5% for
+  6-deck/S17/DAS/3:2, with additive adjustments per rule variant (H17, no DAS, surrender, 6:5
+  payout, deck count).
+- **Slots**: RTP (return to player) is set by hidden reel weightings and can never be derived —
+  always required as caller input, never defaulted or estimated. Expected loss = `bet * (1 - RTP)`.
 
 # Review checklist for math-touching diffs
 
@@ -83,3 +113,8 @@ can't run Python in the current environment, say so explicitly rather than assum
 - For anything enumerating combinations: is there a bound on the work done *before* calling the
   enumerator, not just a cap on the displayed output? A caller can request a superfecta box with
   hundreds of horses; that must fail fast, not hang.
+- Does any tool ever turn market odds or an edge calculation into an explicit betting
+  recommendation ("you should bet X")? It shouldn't — this repo reports analysis and cost, it
+  doesn't advise. (See `review-wager-plan`'s docstring for the rules it enforces.)
+- Does anything present the blackjack house-edge estimate or a slots RTP-derived figure as exact,
+  rather than clearly labeled as approximate/caller-supplied?

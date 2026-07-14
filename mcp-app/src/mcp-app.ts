@@ -1,7 +1,7 @@
 /**
- * @file Interactive UI for the tote-board-scanner MCP App. Shared by both
- * tools (analyze-odds, exotic-ticket-cost) via the same resourceUri; the
- * result's `kind` field selects which renderer draws into #app-root.
+ * @file Interactive UI for the Edge Over Luck MCP App. Shared by every tool
+ * via the same resourceUri; the result's `kind` field selects which
+ * renderer draws into #app-root.
  */
 import {
   App,
@@ -36,6 +36,11 @@ interface WinAnalysisResult {
   horses: AnalyzedHorse[];
 }
 
+interface BudgetSuggestion {
+  type: "smaller_box" | "fewer_others" | "lower_base";
+  description: string;
+}
+
 interface ExoticTicketResult {
   kind: "exotic-ticket-cost";
   wagerType: "exacta" | "trifecta" | "superfecta";
@@ -46,9 +51,100 @@ interface ExoticTicketResult {
   cost: number;
   combinations: number[][];
   truncated: boolean;
+  maxBudget: number | null;
+  overBudget: boolean;
+  suggestions: BudgetSuggestion[];
 }
 
-type ToolResultPayload = WinAnalysisResult | ExoticTicketResult;
+interface TicketComparisonEntry {
+  label: string;
+  combos: number;
+  cost: number;
+  uniqueCombos: number;
+  overlappingCombos: number;
+  costPerUniqueCombo: number | null;
+  addsNoNewCoverage: boolean;
+}
+
+interface TicketComparisonResult {
+  kind: "ticket-comparison";
+  wagerType: string;
+  tickets: TicketComparisonEntry[];
+  totalCost: number;
+  totalUniqueCoverage: number;
+  budget: number | null;
+  overBudget: boolean;
+}
+
+interface BankrollCheckResult {
+  kind: "bankroll-check";
+  bankroll: number;
+  winProb: number;
+  decimalOdds: number;
+  impliedProb: number;
+  kellyMultiplier: number;
+  fullKellyFraction: number;
+  appliedFraction: number;
+  stake: number;
+  guardrailLevel: string;
+  guardrailMessage: string;
+}
+
+interface RouletteBetAnalysisResult {
+  kind: "roulette-bet-analysis";
+  wheelType: "american" | "european";
+  betType: string;
+  betAmount: number;
+  enPartage: boolean;
+  pocketCount: number;
+  numbersCovered: number;
+  payoutToOne: number;
+  houseEdge: number;
+  expectedValue: number;
+}
+
+interface BlackjackAdjustment {
+  label: string;
+  adjustment: number;
+}
+
+interface BlackjackHouseEdgeResult {
+  kind: "blackjack-house-edge";
+  edge: number;
+  breakdown: BlackjackAdjustment[];
+  disclaimer: string;
+}
+
+interface SlotsEvEstimateResult {
+  kind: "slots-ev-estimate";
+  betAmount: number;
+  rtp: number;
+  spins: number | null;
+  volatility: string | null;
+  expectedLossPerSpin: number;
+  expectedLossPerSession: number | null;
+  volatilityNote: string | null;
+}
+
+interface ReviewWagerPlanResult {
+  kind: "review-wager-plan";
+  overround: number;
+  effectiveTakeout: number;
+  horses: AnalyzedHorse[];
+  ticket: { wagerType: string; structure: string; base: number; totalCombos: number; cost: number } | null;
+  bankroll: { amount: number; pctOfBankroll: number | null; guardrailLevel: string; guardrailMessage: string } | null;
+  warnings: string[];
+}
+
+type ToolResultPayload =
+  | WinAnalysisResult
+  | ExoticTicketResult
+  | TicketComparisonResult
+  | BankrollCheckResult
+  | RouletteBetAnalysisResult
+  | BlackjackHouseEdgeResult
+  | SlotsEvEstimateResult
+  | ReviewWagerPlanResult;
 
 const POSITION_LABELS = ["1st", "2nd", "3rd", "4th"];
 
@@ -78,6 +174,13 @@ function renderError(message: string): void {
   p.className = "hint error";
   p.textContent = message;
   rootEl.appendChild(p);
+}
+
+function fillWarnings(container: HTMLElement, warnings: string[]): void {
+  const items = container.querySelectorAll(".warnings li");
+  items.forEach((li, i) => {
+    li.textContent = warnings[i];
+  });
 }
 
 function renderWinAnalysis(analysis: WinAnalysisResult): void {
@@ -158,6 +261,12 @@ function renderExoticTicket(ticket: ExoticTicketResult): void {
       <span class="summary-item"><span class="summary-label">Combinations</span> ${ticket.totalCombos}</span>
       <span class="summary-item"><span class="summary-label">Total cost</span> $${ticket.cost.toFixed(2)}</span>
     </div>
+    ${
+      ticket.overBudget
+        ? `<p class="hint error">Over your $${ticket.maxBudget!.toFixed(2)} budget.</p>
+           <ul class="warnings"></ul>`
+        : ""
+    }
     <table class="data-table">
       <thead>
         <tr>${labels.map((label) => `<th>${label}</th>`).join("")}</tr>
@@ -171,11 +280,151 @@ function renderExoticTicket(ticket: ExoticTicketResult): void {
     }
   `;
 
+  if (ticket.overBudget) {
+    fillWarnings(rootEl, ticket.suggestions.map((s) => s.description));
+  }
+
   const rowsEl = rootEl.querySelector("tbody")!;
   for (const combo of ticket.combinations) {
     const tr = document.createElement("tr");
     tr.innerHTML = combo.map((horse) => `<td>${horse}</td>`).join("");
     rowsEl.appendChild(tr);
+  }
+}
+
+function renderTicketComparison(comparison: TicketComparisonResult): void {
+  rootEl.innerHTML = `
+    <div class="summary">
+      <span class="summary-item"><span class="summary-label">Wager type</span> ${comparison.wagerType}</span>
+      <span class="summary-item"><span class="summary-label">Total cost</span> $${comparison.totalCost.toFixed(2)}</span>
+      <span class="summary-item"><span class="summary-label">Unique coverage</span> ${comparison.totalUniqueCoverage}</span>
+    </div>
+    ${comparison.overBudget ? `<p class="hint error">Over your $${comparison.budget!.toFixed(2)} combined budget.</p>` : ""}
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Ticket</th>
+          <th>Combos</th>
+          <th>Cost</th>
+          <th>Unique</th>
+          <th>Overlapping</th>
+          <th>$ / unique combo</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  `;
+
+  const rowsEl = rootEl.querySelector("tbody")!;
+  for (const t of comparison.tickets) {
+    const tr = document.createElement("tr");
+    if (t.addsNoNewCoverage) tr.classList.add("redundant-row");
+    tr.innerHTML = `
+      <td>${t.label}${t.addsNoNewCoverage ? " ⚠" : ""}</td>
+      <td>${t.combos}</td>
+      <td>$${t.cost.toFixed(2)}</td>
+      <td>${t.uniqueCombos}</td>
+      <td>${t.overlappingCombos}</td>
+      <td>${t.costPerUniqueCombo !== null ? `$${t.costPerUniqueCombo.toFixed(2)}` : "—"}</td>
+    `;
+    rowsEl.appendChild(tr);
+  }
+}
+
+function renderBankrollCheck(result: BankrollCheckResult): void {
+  rootEl.innerHTML = `
+    <div class="summary">
+      <span class="summary-item"><span class="summary-label">Full Kelly</span> ${pct(result.fullKellyFraction)}</span>
+      <span class="summary-item"><span class="summary-label">Applied (${pct(result.kellyMultiplier)} Kelly)</span> ${pct(result.appliedFraction)}</span>
+      <span class="summary-item"><span class="summary-label">Recommended stake</span> $${result.stake.toFixed(2)}</span>
+    </div>
+    <p class="hint ${result.guardrailLevel !== "ok" ? "error" : ""}">${result.guardrailMessage}</p>
+    <p class="hint">Market-implied probability at these odds: ${pct(result.impliedProb)}. Your estimate: ${pct(result.winProb)}.</p>
+  `;
+}
+
+function renderRouletteBetAnalysis(result: RouletteBetAnalysisResult): void {
+  rootEl.innerHTML = `
+    <div class="summary">
+      <span class="summary-item"><span class="summary-label">Wheel</span> ${result.wheelType} (${result.pocketCount} pockets)</span>
+      <span class="summary-item"><span class="summary-label">Payout</span> ${result.payoutToOne.toFixed(0)}:1</span>
+      <span class="summary-item"><span class="summary-label">House edge</span> ${pct(result.houseEdge)}</span>
+      <span class="summary-item"><span class="summary-label">Expected value</span> $${result.expectedValue.toFixed(2)}</span>
+    </div>
+    <p class="hint">${result.betType.replace("_", " ")} bet, $${result.betAmount.toFixed(2)} flat${result.enPartage ? ", en partage/en prison applied" : ""}.</p>
+  `;
+}
+
+function renderBlackjackHouseEdge(result: BlackjackHouseEdgeResult): void {
+  rootEl.innerHTML = `
+    <div class="summary">
+      <span class="summary-item"><span class="summary-label">Estimated house edge</span> ${pct(result.edge)}</span>
+    </div>
+    <table class="data-table">
+      <thead><tr><th>Factor</th><th>Adjustment</th></tr></thead>
+      <tbody></tbody>
+    </table>
+    <p class="hint">${result.disclaimer}</p>
+  `;
+
+  const rowsEl = rootEl.querySelector("tbody")!;
+  for (const b of result.breakdown) {
+    const tr = document.createElement("tr");
+    const sign = b.adjustment >= 0 ? "+" : "";
+    tr.innerHTML = `<td>${b.label}</td><td>${sign}${(b.adjustment * 100).toFixed(2)}%</td>`;
+    rowsEl.appendChild(tr);
+  }
+}
+
+function renderSlotsEvEstimate(result: SlotsEvEstimateResult): void {
+  rootEl.innerHTML = `
+    <div class="summary">
+      <span class="summary-item"><span class="summary-label">RTP</span> ${pct(result.rtp)}</span>
+      <span class="summary-item"><span class="summary-label">Expected loss / spin</span> $${result.expectedLossPerSpin.toFixed(2)}</span>
+      ${result.expectedLossPerSession !== null ? `<span class="summary-item"><span class="summary-label">Expected loss / session</span> $${result.expectedLossPerSession.toFixed(2)}</span>` : ""}
+    </div>
+    ${result.volatilityNote ? `<p class="hint">${result.volatilityNote}</p>` : ""}
+    <p class="hint">RTP must come from the game's actual posted/specified value — it cannot be derived from play.</p>
+  `;
+}
+
+function renderReviewWagerPlan(result: ReviewWagerPlanResult): void {
+  rootEl.innerHTML = `
+    <div class="summary">
+      <span class="summary-item"><span class="summary-label">Overround</span> ${pct(result.overround)}</span>
+      <span class="summary-item"><span class="summary-label">Effective takeout</span> ${pct(result.effectiveTakeout)}</span>
+      ${result.ticket ? `<span class="summary-item"><span class="summary-label">Ticket cost</span> $${result.ticket.cost.toFixed(2)}</span>` : ""}
+    </div>
+    <table class="data-table">
+      <thead>
+        <tr><th>#</th><th>Odds</th><th>Implied win %</th><th>Fair odds</th></tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+    ${
+      result.ticket
+        ? `<p class="hint">Ticket: ${result.ticket.wagerType} ${result.ticket.structure}, ${result.ticket.totalCombos} combo(s), $${result.ticket.cost.toFixed(2)}.</p>`
+        : ""
+    }
+    ${
+      result.bankroll
+        ? `<p class="hint ${result.bankroll.guardrailLevel !== "ok" ? "error" : ""}">${result.bankroll.guardrailMessage}</p>`
+        : ""
+    }
+    ${result.warnings.length > 0 ? `<p class="hint error">Warnings:</p><ul class="warnings"></ul>` : ""}
+  `;
+
+  const rowsEl = rootEl.querySelector("tbody")!;
+  for (const h of result.horses) {
+    const tr = document.createElement("tr");
+    const implied = h.isRange ? `~${pct(h.impliedProbPoint)}` : pct(h.impliedProbPoint);
+    tr.innerHTML = `<td>${h.number}</td><td>${h.oddsDisplay}</td><td>${implied}</td><td>${formatFairOdds(h.fairDecimalOdds)}</td>`;
+    rowsEl.appendChild(tr);
+  }
+
+  if (result.warnings.length > 0) {
+    rootEl.querySelector(".warnings")!.innerHTML = result.warnings.map(() => "<li></li>").join("");
+    fillWarnings(rootEl, result.warnings);
   }
 }
 
@@ -190,6 +439,18 @@ function renderResult(result: CallToolResult): void {
       renderWinAnalysis(payload);
     } else if (payload.kind === "exotic-ticket-cost") {
       renderExoticTicket(payload);
+    } else if (payload.kind === "ticket-comparison") {
+      renderTicketComparison(payload);
+    } else if (payload.kind === "bankroll-check") {
+      renderBankrollCheck(payload);
+    } else if (payload.kind === "roulette-bet-analysis") {
+      renderRouletteBetAnalysis(payload);
+    } else if (payload.kind === "blackjack-house-edge") {
+      renderBlackjackHouseEdge(payload);
+    } else if (payload.kind === "slots-ev-estimate") {
+      renderSlotsEvEstimate(payload);
+    } else if (payload.kind === "review-wager-plan") {
+      renderReviewWagerPlan(payload);
     } else {
       renderError("Unrecognized tool result.");
     }
@@ -217,7 +478,7 @@ function handleHostContextChanged(ctx: McpUiHostContext) {
 }
 
 // 1. Create app instance
-const app = new App({ name: "Tote Board Scanner", version: "1.0.0" });
+const app = new App({ name: "Edge Over Luck Tools", version: "1.0.0" });
 
 // 2. Register handlers BEFORE connecting
 app.ontoolinput = (params) => {
