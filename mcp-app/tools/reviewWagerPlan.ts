@@ -6,7 +6,7 @@ import { z } from "zod";
 import { computeWinAnalysis } from "../../js/analysis.js";
 import { bankrollGuardrail } from "../../js/bankroll.js";
 import { parseOddsDisplay } from "../../js/odds.js";
-import { errorResult, formatFairOdds, resolveWagerCost, RESOURCE_URI, wagerSchema } from "./shared.js";
+import { errorResult, findDuplicates, formatFairOdds, resolveWagerCost, RESOURCE_URI, wagerSchema } from "./shared.js";
 
 /**
  * Consolidated horse-racing workflow tool (the "Master Agent" / "MCP Workflow
@@ -88,6 +88,13 @@ export function registerReviewWagerPlanTool(server: McpServer): void {
           `Could not parse odds for horse(s): ${unparseable
             .map((h) => `#${h.number} ("${h.oddsDisplay}")`)
             .join(", ")}. Use formats like "5/2", "9-2", "3", or "EVEN".`,
+        );
+      }
+
+      const dupes = findDuplicates(horses.map((h) => h.number));
+      if (dupes.length > 0) {
+        return errorResult(
+          `Duplicate horse number(s) in "horses": ${dupes.join(", ")}. Each horse should appear once — a duplicate would double-count that runner in the odds analysis.`,
         );
       }
 

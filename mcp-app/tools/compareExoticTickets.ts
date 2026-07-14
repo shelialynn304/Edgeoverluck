@@ -30,7 +30,11 @@ export function registerCompareExoticTicketsTool(server: McpServer): void {
             }),
           )
           .min(2)
-          .describe("Two or more ticket structures to compare"),
+          .max(10)
+          .describe(
+            "Two to ten ticket structures to compare (capped since each ticket can enumerate up to " +
+              "20,000 combinations and comparison cost grows with the number of tickets)",
+          ),
         budget: z.number().positive().optional().describe("Optional total budget across all tickets combined"),
       },
       _meta: { ui: { resourceUri: RESOURCE_URI } },

@@ -176,11 +176,21 @@ function renderError(message: string): void {
   rootEl.appendChild(p);
 }
 
-function fillWarnings(container: HTMLElement, warnings: string[]): void {
-  const items = container.querySelectorAll(".warnings li");
-  items.forEach((li, i) => {
-    li.textContent = warnings[i];
-  });
+/** Replaces a <ul> element's contents with one <li> per warning, safely (textContent, not innerHTML). */
+function renderWarningsList(ul: HTMLElement, warnings: string[]): void {
+  ul.innerHTML = "";
+  for (const w of warnings) {
+    const li = document.createElement("li");
+    li.textContent = w;
+    ul.appendChild(li);
+  }
+}
+
+/** Escapes a caller-controlled string for safe interpolation into an innerHTML template. */
+function escapeHtml(s: string): string {
+  const div = document.createElement("div");
+  div.textContent = s;
+  return div.innerHTML;
 }
 
 function renderWinAnalysis(analysis: WinAnalysisResult): void {
@@ -281,7 +291,8 @@ function renderExoticTicket(ticket: ExoticTicketResult): void {
   `;
 
   if (ticket.overBudget) {
-    fillWarnings(rootEl, ticket.suggestions.map((s) => s.description));
+    const ul = rootEl.querySelector(".warnings") as HTMLElement;
+    renderWarningsList(ul, ticket.suggestions.map((s) => s.description));
   }
 
   const rowsEl = rootEl.querySelector("tbody")!;
@@ -320,7 +331,7 @@ function renderTicketComparison(comparison: TicketComparisonResult): void {
     const tr = document.createElement("tr");
     if (t.addsNoNewCoverage) tr.classList.add("redundant-row");
     tr.innerHTML = `
-      <td>${t.label}${t.addsNoNewCoverage ? " ⚠" : ""}</td>
+      <td>${escapeHtml(t.label)}${t.addsNoNewCoverage ? " ⚠" : ""}</td>
       <td>${t.combos}</td>
       <td>$${t.cost.toFixed(2)}</td>
       <td>${t.uniqueCombos}</td>
@@ -423,8 +434,8 @@ function renderReviewWagerPlan(result: ReviewWagerPlanResult): void {
   }
 
   if (result.warnings.length > 0) {
-    rootEl.querySelector(".warnings")!.innerHTML = result.warnings.map(() => "<li></li>").join("");
-    fillWarnings(rootEl, result.warnings);
+    const ul = rootEl.querySelector(".warnings") as HTMLElement;
+    renderWarningsList(ul, result.warnings);
   }
 }
 

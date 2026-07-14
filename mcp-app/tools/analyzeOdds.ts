@@ -5,7 +5,7 @@ import { z } from "zod";
 
 import { computeWinAnalysis } from "../../js/analysis.js";
 import { parseOddsDisplay } from "../../js/odds.js";
-import { errorResult, formatFairOdds, RESOURCE_URI } from "./shared.js";
+import { errorResult, findDuplicates, formatFairOdds, RESOURCE_URI } from "./shared.js";
 
 export function registerAnalyzeOddsTool(server: McpServer): void {
   registerAppTool(
@@ -51,6 +51,13 @@ export function registerAnalyzeOddsTool(server: McpServer): void {
           `Could not parse odds for horse(s): ${unparseable
             .map((h) => `#${h.number} ("${h.oddsDisplay}")`)
             .join(", ")}. Use formats like "5/2", "9-2", "3", or "EVEN".`,
+        );
+      }
+
+      const dupes = findDuplicates(horses.map((h) => h.number));
+      if (dupes.length > 0) {
+        return errorResult(
+          `Duplicate horse number(s) in "horses": ${dupes.join(", ")}. Each horse should appear once — a duplicate would double-count that runner in the overround/takeout math.`,
         );
       }
 
