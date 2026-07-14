@@ -7,11 +7,19 @@ import { z } from "zod";
 
 import { parseOddsDisplay } from "../js/odds.js";
 import { computeWinAnalysis } from "../js/analysis.js";
+import { boxCost, keyCost, wheelCost } from "../js/exotics.js";
 
-const RESOURCE_URI = "ui://tote-board-scanner/analyze-odds.html";
+const RESOURCE_URI = "ui://tote-board-scanner/mcp-app.html";
+
+const WAGER_POSITIONS = { exacta: 2, trifecta: 3, superfecta: 4 } as const;
+const MAX_DISPLAYED_COMBINATIONS = 200;
 
 function formatFairOdds(decimalOdds: number): string {
   return isFinite(decimalOdds) ? `${decimalOdds.toFixed(2)}:1` : "—";
+}
+
+function errorResult(text: string): CallToolResult {
+  return { isError: true, content: [{ type: "text", text }] };
 }
 
 /**
@@ -62,17 +70,11 @@ export function createServer(): McpServer {
 
       const unparseable = parsed.filter((h) => h.fractionalOdds === null);
       if (unparseable.length > 0) {
-        return {
-          isError: true,
-          content: [
-            {
-              type: "text",
-              text: `Could not parse odds for horse(s): ${unparseable
-                .map((h) => `#${h.number} ("${h.oddsDisplay}")`)
-                .join(", ")}. Use formats like "5/2", "9-2", "3", or "EVEN".`,
-            },
-          ],
-        };
+        return errorResult(
+          `Could not parse odds for horse(s): ${unparseable
+            .map((h) => `#${h.number} ("${h.oddsDisplay}")`)
+            .join(", ")}. Use formats like "5/2", "9-2", "3", or "EVEN".`,
+        );
       }
 
       const { horses: analyzed, overround, effectiveTakeout } = computeWinAnalysis(parsed);
@@ -92,6 +94,7 @@ export function createServer(): McpServer {
           },
         ],
         structuredContent: {
+          kind: "win-analysis",
           sourceType,
           overround,
           effectiveTakeout,
@@ -111,9 +114,129 @@ export function createServer(): McpServer {
     },
   );
 
+  registerAppTool(
+    server,
+    "exotic-ticket-cost",
+    {
+      title: "Exotic Ticket Cost",
+      description:
+        "Computes the number of combinations and total cost of an exacta/trifecta/superfecta " +
+        "ticket for a box, key, or wheel structure, by combinatorial enumeration (not shortcut " +
+        "formulas), so overlapping key/wheel horse groups are always counted correctly. Renders " +
+        "an interactive table of every winning combination.",
+      inputSchema: {
+        wagerType: z
+          .enum(["exacta", "trifecta", "superfecta"])
+          .describe("Exacta = top 2 finishers, trifecta = top 3, superfecta = top 4"),
+        base: z
+          .number()
+          .positive()
+          .default(1)
+          .describe("Bet unit per combination, e.g. 0.50, 1, or 2"),
+        wager: z
+          .discriminatedUnion("structure", [
+            z.object({
+              structure: z.literal("box"),
+              horses: z
+                .array(z.number().int())
+                .min(1)
+                .describe("Every horse number included in the box"),
+            }),
+            z.object({
+              structure: z.literal("key"),
+              keyHorse: z.number().int().describe("The key horse number"),
+              others: z
+                .array(z.number().int())
+                .min(1)
+                .describe("Horse numbers boxed together in the non-key positions"),
+              keyPositions: z
+                .array(z.number().int().min(0))
+                .min(1)
+                .describe(
+                  "0-indexed finish positions the key horse occupies, e.g. [0] = key to win only, [0, 1] = key boxed over the top two spots",
+                ),
+            }),
+            z.object({
+              structure: z.literal("wheel"),
+              positionGroups: z
+                .array(z.array(z.number().int()).min(1))
+                .min(1)
+                .describe(
+                  "One horse-number array per finish position, in order (must have exactly as many groups as the wager type has positions)",
+                ),
+            }),
+          ])
+          .describe("The ticket structure and its horses"),
+      },
+      _meta: { ui: { resourceUri: RESOURCE_URI } },
+    },
+    async ({ wagerType, base, wager }): Promise<CallToolResult> => {
+      const positions = WAGER_POSITIONS[wagerType];
+
+      let result: { combos: number; cost: number; combinations: number[][] };
+      if (wager.structure === "box") {
+        if (wager.horses.length < positions) {
+          return errorResult(
+            `A ${wagerType} box needs at least ${positions} horses; got ${wager.horses.length}.`,
+          );
+        }
+        result = boxCost(wager.horses, positions, base);
+      } else if (wager.structure === "key") {
+        const outOfRange = wager.keyPositions.some((p) => p >= positions);
+        if (outOfRange) {
+          return errorResult(
+            `keyPositions must be between 0 and ${positions - 1} for a ${wagerType}.`,
+          );
+        }
+        if (wager.keyPositions.length >= positions) {
+          return errorResult(
+            `keyPositions must leave at least one position for the "others" group in a ${wagerType}.`,
+          );
+        }
+        result = keyCost(wager.keyHorse, wager.others, positions, wager.keyPositions, base);
+      } else {
+        if (wager.positionGroups.length !== positions) {
+          return errorResult(
+            `A ${wagerType} wheel needs exactly ${positions} position groups; got ${wager.positionGroups.length}.`,
+          );
+        }
+        result = wheelCost(wager.positionGroups, base);
+      }
+
+      if (result.combos === 0) {
+        return errorResult(
+          `That ${wagerType} ${wager.structure} has no valid combinations — check for overlapping/duplicate horses across positions.`,
+        );
+      }
+
+      const truncated = result.combinations.length > MAX_DISPLAYED_COMBINATIONS;
+      const combinations = result.combinations.slice(0, MAX_DISPLAYED_COMBINATIONS);
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: `${wagerType} ${wager.structure}: ${result.combos} combo(s), $${result.cost.toFixed(2)} total at $${base.toFixed(2)} base`,
+          },
+        ],
+        structuredContent: {
+          kind: "exotic-ticket",
+          wagerType,
+          structure: wager.structure,
+          base,
+          positions,
+          totalCombos: result.combos,
+          cost: result.cost,
+          combinations,
+          truncated,
+        },
+      };
+    },
+  );
+
   registerAppResource(
     server,
-    RESOURCE_URI,
+    "Tote Board Scanner UI",
     RESOURCE_URI,
     { mimeType: RESOURCE_MIME_TYPE },
     async (): Promise<ReadResourceResult> => {

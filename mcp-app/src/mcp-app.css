@@ -14,25 +14,25 @@
   margin-right: var(--spacing-xs);
 }
 
-.odds-table {
+.data-table {
   width: 100%;
   border-collapse: collapse;
   font-size: var(--font-text-sm-size);
 }
 
-.odds-table th,
-.odds-table td {
+.data-table th,
+.data-table td {
   text-align: left;
   padding: var(--spacing-sm);
   border-bottom: var(--border-width-regular) solid var(--color-border-primary);
 }
 
-.odds-table th {
+.data-table th {
   color: var(--color-text-secondary);
   font-weight: var(--font-weight-bold);
 }
 
-.odds-table input[type="number"] {
+.data-table input[type="number"] {
   width: 4.5em;
   font-family: var(--font-mono);
   background: var(--color-background-secondary);
@@ -55,4 +55,8 @@
   color: var(--color-text-secondary);
   font-size: var(--font-text-sm-size);
   margin-top: var(--spacing-md);
+}
+
+.hint.error {
+  color: var(--color-negative);
 }

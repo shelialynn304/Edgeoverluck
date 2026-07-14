@@ -1,8 +1,7 @@
 /**
- * @file Interactive odds-analysis UI for the tote-board-scanner MCP App.
- * Renders the server-computed fair-odds table and lets the user type a
- * win-probability estimate per horse to see a live overlay/underlay edge,
- * reusing the same verified computeOverlay() used by the web app.
+ * @file Interactive UI for the tote-board-scanner MCP App. Shared by both
+ * tools (analyze-odds, exotic-ticket-cost) via the same resourceUri; the
+ * result's `kind` field selects which renderer draws into #app-root.
  */
 import {
   App,
@@ -29,17 +28,32 @@ interface AnalyzedHorse {
   fairDecimalOdds: number | null;
 }
 
-interface AnalysisResult {
+interface WinAnalysisResult {
+  kind: "win-analysis";
   sourceType: string;
   overround: number;
   effectiveTakeout: number;
   horses: AnalyzedHorse[];
 }
 
+interface ExoticTicketResult {
+  kind: "exotic-ticket";
+  wagerType: "exacta" | "trifecta" | "superfecta";
+  structure: "box" | "key" | "wheel";
+  base: number;
+  positions: number;
+  totalCombos: number;
+  cost: number;
+  combinations: number[][];
+  truncated: boolean;
+}
+
+type ToolResultPayload = WinAnalysisResult | ExoticTicketResult;
+
+const POSITION_LABELS = ["1st", "2nd", "3rd", "4th"];
+
 const mainEl = document.querySelector(".main") as HTMLElement;
-const overroundEl = document.getElementById("overround")!;
-const takeoutEl = document.getElementById("takeout")!;
-const rowsEl = document.getElementById("odds-rows")!;
+const rootEl = document.getElementById("app-root")!;
 
 function pct(n: number): string {
   return `${(n * 100).toFixed(1)}%`;
@@ -49,11 +63,48 @@ function formatFairOdds(decimalOdds: number | null): string {
   return decimalOdds !== null && isFinite(decimalOdds) ? `${decimalOdds.toFixed(2)}:1` : "—";
 }
 
-function extractAnalysis(result: CallToolResult): AnalysisResult | null {
-  return (result.structuredContent as AnalysisResult | undefined) ?? null;
+function extractPayload(result: CallToolResult): ToolResultPayload | null {
+  return (result.structuredContent as ToolResultPayload | undefined) ?? null;
 }
 
-function renderRow(horse: AnalyzedHorse): HTMLTableRowElement {
+function extractErrorText(result: CallToolResult): string {
+  const textBlock = result.content?.find((c): c is { type: "text"; text: string } => c.type === "text");
+  return textBlock?.text ?? "The tool call failed.";
+}
+
+function renderError(message: string): void {
+  rootEl.innerHTML = `<p class="hint error">${message}</p>`;
+}
+
+function renderWinAnalysis(analysis: WinAnalysisResult): void {
+  rootEl.innerHTML = `
+    <div class="summary">
+      <span class="summary-item"><span class="summary-label">Overround</span> ${pct(analysis.overround)}</span>
+      <span class="summary-item"><span class="summary-label">Effective takeout</span> ${pct(analysis.effectiveTakeout)}</span>
+    </div>
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Odds</th>
+          <th>Implied win %</th>
+          <th>Fair odds</th>
+          <th>Your estimate %</th>
+          <th>Edge</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+    <p class="hint">Enter your own win-probability estimate for a horse to see whether the board price is an overlay (+EV) or underlay.</p>
+  `;
+
+  const rowsEl = rootEl.querySelector("tbody")!;
+  for (const horse of analysis.horses) {
+    rowsEl.appendChild(renderWinAnalysisRow(horse));
+  }
+}
+
+function renderWinAnalysisRow(horse: AnalyzedHorse): HTMLTableRowElement {
   const tr = document.createElement("tr");
 
   const impliedText = horse.isRange
@@ -93,18 +144,55 @@ function renderRow(horse: AnalyzedHorse): HTMLTableRowElement {
   return tr;
 }
 
-function renderAnalysis(analysis: AnalysisResult | null): void {
-  if (!analysis) {
-    rowsEl.innerHTML = `<tr><td colspan="6">No analysis available.</td></tr>`;
+function renderExoticTicket(ticket: ExoticTicketResult): void {
+  const labels = POSITION_LABELS.slice(0, ticket.positions);
+
+  rootEl.innerHTML = `
+    <div class="summary">
+      <span class="summary-item"><span class="summary-label">Wager</span> ${ticket.wagerType} ${ticket.structure}</span>
+      <span class="summary-item"><span class="summary-label">Base</span> $${ticket.base.toFixed(2)}</span>
+      <span class="summary-item"><span class="summary-label">Combinations</span> ${ticket.totalCombos}</span>
+      <span class="summary-item"><span class="summary-label">Total cost</span> $${ticket.cost.toFixed(2)}</span>
+    </div>
+    <table class="data-table">
+      <thead>
+        <tr>${labels.map((label) => `<th>${label}</th>`).join("")}</tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+    ${
+      ticket.truncated
+        ? `<p class="hint">Showing the first ${ticket.combinations.length} of ${ticket.totalCombos} combinations.</p>`
+        : ""
+    }
+  `;
+
+  const rowsEl = rootEl.querySelector("tbody")!;
+  for (const combo of ticket.combinations) {
+    const tr = document.createElement("tr");
+    tr.innerHTML = combo.map((horse) => `<td>${horse}</td>`).join("");
+    rowsEl.appendChild(tr);
+  }
+}
+
+function renderResult(result: CallToolResult): void {
+  if (result.isError) {
+    renderError(extractErrorText(result));
     return;
   }
 
-  overroundEl.textContent = pct(analysis.overround);
-  takeoutEl.textContent = pct(analysis.effectiveTakeout);
+  const payload = extractPayload(result);
+  if (!payload) {
+    renderError("No structured data in the tool result.");
+    return;
+  }
 
-  rowsEl.innerHTML = "";
-  for (const horse of analysis.horses) {
-    rowsEl.appendChild(renderRow(horse));
+  if (payload.kind === "win-analysis") {
+    renderWinAnalysis(payload);
+  } else if (payload.kind === "exotic-ticket") {
+    renderExoticTicket(payload);
+  } else {
+    renderError("Unrecognized tool result.");
   }
 }
 
@@ -127,7 +215,7 @@ function handleHostContextChanged(ctx: McpUiHostContext) {
 }
 
 // 1. Create app instance
-const app = new App({ name: "Odds Analysis", version: "1.0.0" });
+const app = new App({ name: "Tote Board Scanner", version: "1.0.0" });
 
 // 2. Register handlers BEFORE connecting
 app.ontoolinput = (params) => {
@@ -135,7 +223,7 @@ app.ontoolinput = (params) => {
 };
 
 app.ontoolresult = (result) => {
-  renderAnalysis(extractAnalysis(result));
+  renderResult(result);
 };
 
 app.ontoolcancelled = (params) => {
