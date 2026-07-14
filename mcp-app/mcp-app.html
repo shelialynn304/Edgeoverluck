@@ -2,32 +2,27 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="light dark">
-  <title>Odds Analysis</title>
+
+  <meta
+    name="description"
+    content="Analyze horse-racing tote odds and calculate exotic wager ticket costs."
+  >
+
+  <title>Tote Board Scanner | Edge Over Luck</title>
 </head>
 <body>
-  <main class="main">
-    <div class="summary">
-      <span class="summary-item"><span class="summary-label">Overround</span> <span id="overround">—</span></span>
-      <span class="summary-item"><span class="summary-label">Effective takeout</span> <span id="takeout">—</span></span>
+  <main class="main" aria-labelledby="app-title">
+    <h1 id="app-title" class="visually-hidden">Tote Board Scanner</h1>
+
+    <div id="app-root" aria-live="polite" aria-busy="true">
+      <p class="hint" role="status">Waiting for analysis results…</p>
     </div>
 
-    <table class="odds-table">
-      <thead>
-        <tr>
-          <th>#</th>
-          <th>Odds</th>
-          <th>Implied win %</th>
-          <th>Fair odds</th>
-          <th>Your estimate %</th>
-          <th>Edge</th>
-        </tr>
-      </thead>
-      <tbody id="odds-rows"></tbody>
-    </table>
-
-    <p class="hint">Enter your own win-probability estimate for a horse to see whether the board price is an overlay (+EV) or underlay.</p>
+    <noscript>
+      <p>This application requires JavaScript to display analysis results.</p>
+    </noscript>
   </main>
   <script type="module" src="/src/mcp-app.ts"></script>
 </body>

@@ -1,19 +1,27 @@
 # tote-board-scanner MCP App
 
-Exposes the odds-analysis engine (`js/odds.js`, `js/analysis.js`) as an MCP tool with an
-interactive UI, so it can run inside MCP-enabled hosts like Claude Desktop. This covers the
-math-analysis half of the scanner — implied win probability, overround, effective takeout, and
-fair odds — not the AI vision scan step (`api/scan.js`).
+Exposes the odds-analysis engine (`js/odds.js`, `js/analysis.js`, `js/exotics.js`) as MCP tools
+with an interactive UI, so it can run inside MCP-enabled hosts like Claude Desktop. This covers
+the math-analysis half of the scanner — win-pool fair odds and exotic ticket costs — not the AI
+vision scan step (`api/scan.js`).
 
-The server imports `../js/odds.js` and `../js/analysis.js` directly rather than duplicating the
-logic, so it stays in sync with the Python-verified math in `verifier/`.
+The server imports `../js/odds.js`, `../js/analysis.js`, and `../js/exotics.js` directly rather
+than duplicating the logic, so it stays in sync with the Python-verified math in `verifier/`.
 
-## Tool
+Both tools share the same UI resource (`ui://tote-board-scanner/mcp-app.html`); the client
+dispatches on the `kind` field of the result's `structuredContent` to decide which table to render.
 
-`analyze-odds` — takes a list of `{ number, oddsDisplay }` horses (odds exactly as displayed, e.g.
-`"5/2"`, `"9-2"`, `"3"`, `"EVEN"`) and an optional `sourceType`. Returns implied probability,
-overround, effective takeout, and fair odds, rendered as an interactive table where you can type a
-win-probability estimate per horse to see a live overlay/underlay edge.
+## Tools
+
+- **`analyze-odds`** — takes a list of `{ number, oddsDisplay }` horses (odds exactly as displayed,
+  e.g. `"5/2"`, `"9-2"`, `"3"`, `"EVEN"`) and an optional `sourceType`. Returns implied probability,
+  overround, effective takeout, and fair odds, rendered as an interactive table where you can type a
+  win-probability estimate per horse to see a live overlay/underlay edge.
+- **`exotic-ticket-cost`** — takes a `wagerType` (`exacta`/`trifecta`/`superfecta`), a `base` bet
+  unit, and a `wager` (one of `box`, `key`, or `wheel`, matching `js/exotics.js`'s structures).
+  Returns the combination count and total cost by combinatorial enumeration, rendered as a table of
+  every winning combination (capped at 200 rows; the reported cost/count always reflect the full
+  total even when the table is truncated).
 
 ## Development
 
