@@ -69,12 +69,17 @@ All formulas are tested in a Python verifier pipeline via GitHub Actions. No mat
 │   ├── vision.js       # API proxy calls + JSON parsing
 │   ├── odds.js         # Odds format parsing (fractional, dash, EVEN, etc.)
 │   ├── analysis.js     # Implied prob, overround, fair odds, overlays
-│   └── exotics.js      # Ticket cost enumeration engine
+│   ├── exotics.js      # Ticket cost enumeration engine
+│   ├── bankroll.js     # Kelly criterion stake sizing
+│   ├── roulette.js     # Bet payout / house edge / EV
+│   ├── blackjack.js    # Approximate house-edge estimate
+│   └── slots.js        # Expected-loss estimate (given caller-supplied RTP)
 ├── api/
 │   └── scan.js         # Serverless proxy for Anthropic API
 ├── verifier/
-│   └── *.py            # Python math validation suite
-├── mcp-app/            # MCP App: odds analysis as an MCP tool with interactive UI
+│   └── *.py            # Python math validation suite (mirrors every js/*.js module above)
+├── mcp-app/            # MCP App: Edge Over Luck tools (odds analysis, exotic tickets, bankroll,
+│                       # roulette, blackjack, slots) as MCP tools with interactive UI
 └── .github/workflows/  # CI: math verification on every PR
 ```
 

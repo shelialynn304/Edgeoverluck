@@ -60,3 +60,14 @@
 .hint.error {
   color: var(--color-negative);
 }
+
+.warnings {
+  margin: var(--spacing-sm) 0;
+  padding-left: 1.25em;
+  color: var(--color-negative);
+  font-size: var(--font-text-sm-size);
+}
+
+.redundant-row {
+  opacity: 0.6;
+}
