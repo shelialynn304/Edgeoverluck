@@ -1,0 +1,58 @@
+.main {
+  padding: var(--spacing-md);
+}
+
+.summary {
+  display: flex;
+  gap: var(--spacing-lg);
+  margin-bottom: var(--spacing-md);
+  font-size: var(--font-text-sm-size);
+}
+
+.summary-label {
+  color: var(--color-text-secondary);
+  margin-right: var(--spacing-xs);
+}
+
+.odds-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--font-text-sm-size);
+}
+
+.odds-table th,
+.odds-table td {
+  text-align: left;
+  padding: var(--spacing-sm);
+  border-bottom: var(--border-width-regular) solid var(--color-border-primary);
+}
+
+.odds-table th {
+  color: var(--color-text-secondary);
+  font-weight: var(--font-weight-bold);
+}
+
+.odds-table input[type="number"] {
+  width: 4.5em;
+  font-family: var(--font-mono);
+  background: var(--color-background-secondary);
+  color: var(--color-text-primary);
+  border: var(--border-width-regular) solid var(--color-border-primary);
+  border-radius: var(--border-radius-md);
+  padding: var(--spacing-xs);
+}
+
+.edge-cell.overlay {
+  color: var(--color-positive);
+  font-weight: var(--font-weight-bold);
+}
+
+.edge-cell.underlay {
+  color: var(--color-negative);
+}
+
+.hint {
+  color: var(--color-text-secondary);
+  font-size: var(--font-text-sm-size);
+  margin-top: var(--spacing-md);
+}

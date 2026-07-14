@@ -74,6 +74,7 @@ All formulas are tested in a Python verifier pipeline via GitHub Actions. No mat
 │   └── scan.js         # Serverless proxy for Anthropic API
 ├── verifier/
 │   └── *.py            # Python math validation suite
+├── mcp-app/            # MCP App: odds analysis as an MCP tool with interactive UI
 └── .github/workflows/  # CI: math verification on every PR
 ```
 
