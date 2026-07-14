@@ -13,6 +13,7 @@ const RESOURCE_URI = "ui://tote-board-scanner/mcp-app.html";
 
 const WAGER_POSITIONS = { exacta: 2, trifecta: 3, superfecta: 4 } as const;
 const MAX_DISPLAYED_COMBINATIONS = 200;
+const MAX_ENUMERATED_COMBINATIONS = 20_000;
 
 function formatFairOdds(decimalOdds: number): string {
   return isFinite(decimalOdds) ? `${decimalOdds.toFixed(2)}:1` : "—";
@@ -20,6 +21,31 @@ function formatFairOdds(decimalOdds: number): string {
 
 function errorResult(text: string): CallToolResult {
   return { isError: true, content: [{ type: "text", text }] };
+}
+
+function findDuplicates(numbers: number[]): number[] {
+  const seen = new Set<number>();
+  const dupes = new Set<number>();
+  for (const n of numbers) {
+    if (seen.has(n)) dupes.add(n);
+    seen.add(n);
+  }
+  return [...dupes];
+}
+
+/**
+ * Upper-bounds the enumerator's work without materializing any combinations:
+ * the true (distinct-horse) combination count can never exceed the product
+ * of each position group's size, so if that product is within budget, the
+ * real enumeration is guaranteed to be too.
+ */
+function exceedsCombinationBudget(groupSizes: number[], cap: number): boolean {
+  let product = 1;
+  for (const size of groupSizes) {
+    product *= size;
+    if (product > cap) return true;
+  }
+  return false;
 }
 
 /**
@@ -149,11 +175,12 @@ export function createServer(): McpServer {
                 .array(z.number().int())
                 .min(1)
                 .describe("Horse numbers boxed together in the non-key positions"),
-              keyPositions: z
-                .array(z.number().int().min(0))
-                .min(1)
+              keyPosition: z
+                .number()
+                .int()
+                .min(0)
                 .describe(
-                  "0-indexed finish positions the key horse occupies, e.g. [0] = key to win only, [0, 1] = key boxed over the top two spots",
+                  "0-indexed finish position the key horse occupies, e.g. 0 = key to win, 1 = key to place",
                 ),
             }),
             z.object({
@@ -180,24 +207,60 @@ export function createServer(): McpServer {
             `A ${wagerType} box needs at least ${positions} horses; got ${wager.horses.length}.`,
           );
         }
+        const dupes = findDuplicates(wager.horses);
+        if (dupes.length > 0) {
+          return errorResult(`Duplicate horse number(s) in "horses": ${dupes.join(", ")}.`);
+        }
+        if (exceedsCombinationBudget(Array(positions).fill(wager.horses.length), MAX_ENUMERATED_COMBINATIONS)) {
+          return errorResult(
+            `That ${wagerType} box is too large to enumerate (max ${MAX_ENUMERATED_COMBINATIONS} combinations). Use fewer horses.`,
+          );
+        }
         result = boxCost(wager.horses, positions, base);
       } else if (wager.structure === "key") {
-        const outOfRange = wager.keyPositions.some((p) => p >= positions);
-        if (outOfRange) {
+        if (wager.keyPosition >= positions) {
           return errorResult(
-            `keyPositions must be between 0 and ${positions - 1} for a ${wagerType}.`,
+            `keyPosition must be between 0 and ${positions - 1} for a ${wagerType}.`,
           );
         }
-        if (wager.keyPositions.length >= positions) {
+        const dupes = findDuplicates(wager.others);
+        if (dupes.length > 0) {
+          return errorResult(`Duplicate horse number(s) in "others": ${dupes.join(", ")}.`);
+        }
+        if (wager.others.includes(wager.keyHorse)) {
+          return errorResult(`Key horse #${wager.keyHorse} cannot also appear in "others".`);
+        }
+        if (
+          exceedsCombinationBudget(
+            Array(positions - 1).fill(wager.others.length),
+            MAX_ENUMERATED_COMBINATIONS,
+          )
+        ) {
           return errorResult(
-            `keyPositions must leave at least one position for the "others" group in a ${wagerType}.`,
+            `That ${wagerType} key is too large to enumerate (max ${MAX_ENUMERATED_COMBINATIONS} combinations). Use fewer "others" horses.`,
           );
         }
-        result = keyCost(wager.keyHorse, wager.others, positions, wager.keyPositions, base);
+        result = keyCost(wager.keyHorse, wager.others, positions, [wager.keyPosition], base);
       } else {
         if (wager.positionGroups.length !== positions) {
           return errorResult(
             `A ${wagerType} wheel needs exactly ${positions} position groups; got ${wager.positionGroups.length}.`,
+          );
+        }
+        for (const [i, group] of wager.positionGroups.entries()) {
+          const dupes = findDuplicates(group);
+          if (dupes.length > 0) {
+            return errorResult(`Duplicate horse number(s) in position group ${i + 1}: ${dupes.join(", ")}.`);
+          }
+        }
+        if (
+          exceedsCombinationBudget(
+            wager.positionGroups.map((g) => g.length),
+            MAX_ENUMERATED_COMBINATIONS,
+          )
+        ) {
+          return errorResult(
+            `That ${wagerType} wheel is too large to enumerate (max ${MAX_ENUMERATED_COMBINATIONS} combinations). Use fewer horses per position.`,
           );
         }
         result = wheelCost(wager.positionGroups, base);

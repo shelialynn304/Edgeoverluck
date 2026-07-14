@@ -73,7 +73,11 @@ function extractErrorText(result: CallToolResult): string {
 }
 
 function renderError(message: string): void {
-  rootEl.innerHTML = `<p class="hint error">${message}</p>`;
+  rootEl.innerHTML = "";
+  const p = document.createElement("p");
+  p.className = "hint error";
+  p.textContent = message;
+  rootEl.appendChild(p);
 }
 
 function renderWinAnalysis(analysis: WinAnalysisResult): void {
