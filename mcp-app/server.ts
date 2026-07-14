@@ -34,10 +34,28 @@ function findDuplicates(numbers: number[]): number[] {
 }
 
 /**
- * Upper-bounds the enumerator's work without materializing any combinations:
- * the true (distinct-horse) combination count can never exceed the product
- * of each position group's size, so if that product is within budget, the
- * real enumeration is guaranteed to be too.
+ * Exact combination count for box/key: since every non-fixed position reuses
+ * the same horse pool, the true count is the falling-factorial permutation
+ * n * (n-1) * ... * (n-r+1) — not just an upper bound. Bails out as soon as
+ * the running product exceeds the cap, so this stays cheap even for huge n.
+ */
+function permutationExceedsBudget(n: number, r: number, cap: number): boolean {
+  let product = 1;
+  for (let i = 0; i < r; i++) {
+    product *= n - i;
+    if (product > cap) return true;
+  }
+  return false;
+}
+
+/**
+ * Upper-bounds a wheel's enumeration work without materializing any
+ * combinations: the true (distinct-horse) combination count can never exceed
+ * the product of each position group's size, so if that product is within
+ * budget, the real enumeration is guaranteed to be too. Because overlapping
+ * groups can only ever *reduce* the true count below this product, this is a
+ * conservative, worst-case check — it can reject wheels whose actual count
+ * would have fit, but never accepts one that wouldn't.
  */
 function exceedsCombinationBudget(groupSizes: number[], cap: number): boolean {
   let product = 1;
@@ -49,7 +67,8 @@ function exceedsCombinationBudget(groupSizes: number[], cap: number): boolean {
 }
 
 /**
- * Creates a new MCP server instance with the odds-analysis tool and its UI resource registered.
+ * Creates a new MCP server instance with the odds-analysis and exotic-ticket-cost
+ * tools and their shared UI resource registered.
  */
 export function createServer(): McpServer {
   const server = new McpServer({
@@ -149,7 +168,8 @@ export function createServer(): McpServer {
         "Computes the number of combinations and total cost of an exacta/trifecta/superfecta " +
         "ticket for a box, key, or wheel structure, by combinatorial enumeration (not shortcut " +
         "formulas), so overlapping key/wheel horse groups are always counted correctly. Renders " +
-        "an interactive table of every winning combination.",
+        "an interactive table of the winning combinations (capped at 200 displayed rows for very " +
+        "large tickets; the reported total count and cost always reflect every combination).",
       inputSchema: {
         wagerType: z
           .enum(["exacta", "trifecta", "superfecta"])
@@ -211,7 +231,7 @@ export function createServer(): McpServer {
         if (dupes.length > 0) {
           return errorResult(`Duplicate horse number(s) in "horses": ${dupes.join(", ")}.`);
         }
-        if (exceedsCombinationBudget(Array(positions).fill(wager.horses.length), MAX_ENUMERATED_COMBINATIONS)) {
+        if (permutationExceedsBudget(wager.horses.length, positions, MAX_ENUMERATED_COMBINATIONS)) {
           return errorResult(
             `That ${wagerType} box is too large to enumerate (max ${MAX_ENUMERATED_COMBINATIONS} combinations). Use fewer horses.`,
           );
@@ -230,12 +250,7 @@ export function createServer(): McpServer {
         if (wager.others.includes(wager.keyHorse)) {
           return errorResult(`Key horse #${wager.keyHorse} cannot also appear in "others".`);
         }
-        if (
-          exceedsCombinationBudget(
-            Array(positions - 1).fill(wager.others.length),
-            MAX_ENUMERATED_COMBINATIONS,
-          )
-        ) {
+        if (permutationExceedsBudget(wager.others.length, positions - 1, MAX_ENUMERATED_COMBINATIONS)) {
           return errorResult(
             `That ${wagerType} key is too large to enumerate (max ${MAX_ENUMERATED_COMBINATIONS} combinations). Use fewer "others" horses.`,
           );
@@ -260,7 +275,8 @@ export function createServer(): McpServer {
           )
         ) {
           return errorResult(
-            `That ${wagerType} wheel is too large to enumerate (max ${MAX_ENUMERATED_COMBINATIONS} combinations). Use fewer horses per position.`,
+            `That ${wagerType} wheel's worst-case size exceeds ${MAX_ENUMERATED_COMBINATIONS} combinations, so it was refused as a precaution. ` +
+              `This is a conservative check — heavily overlapping position groups may have a much smaller actual count — but retry with fewer horses per position.`,
           );
         }
         result = wheelCost(wager.positionGroups, base);
