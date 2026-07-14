@@ -29,7 +29,7 @@ interface AnalyzedHorse {
 }
 
 interface WinAnalysisResult {
-  kind: "win-analysis";
+  kind: "odds-analysis";
   sourceType: string;
   overround: number;
   effectiveTakeout: number;
@@ -37,7 +37,7 @@ interface WinAnalysisResult {
 }
 
 interface ExoticTicketResult {
-  kind: "exotic-ticket";
+  kind: "exotic-ticket-cost";
   wagerType: "exacta" | "trifecta" | "superfecta";
   structure: "box" | "key" | "wheel";
   base: number;
@@ -182,22 +182,20 @@ function renderExoticTicket(ticket: ExoticTicketResult): void {
 function renderResult(result: CallToolResult): void {
   if (result.isError) {
     renderError(extractErrorText(result));
-    return;
-  }
-
-  const payload = extractPayload(result);
-  if (!payload) {
-    renderError("No structured data in the tool result.");
-    return;
-  }
-
-  if (payload.kind === "win-analysis") {
-    renderWinAnalysis(payload);
-  } else if (payload.kind === "exotic-ticket") {
-    renderExoticTicket(payload);
   } else {
-    renderError("Unrecognized tool result.");
+    const payload = extractPayload(result);
+    if (!payload) {
+      renderError("No structured data in the tool result.");
+    } else if (payload.kind === "odds-analysis") {
+      renderWinAnalysis(payload);
+    } else if (payload.kind === "exotic-ticket-cost") {
+      renderExoticTicket(payload);
+    } else {
+      renderError("Unrecognized tool result.");
+    }
   }
+
+  rootEl.setAttribute("aria-busy", "false");
 }
 
 function handleHostContextChanged(ctx: McpUiHostContext) {
@@ -224,6 +222,7 @@ const app = new App({ name: "Tote Board Scanner", version: "1.0.0" });
 // 2. Register handlers BEFORE connecting
 app.ontoolinput = (params) => {
   console.info("Received tool call input:", params);
+  rootEl.setAttribute("aria-busy", "true");
 };
 
 app.ontoolresult = (result) => {

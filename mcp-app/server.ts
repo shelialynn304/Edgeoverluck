@@ -120,7 +120,7 @@ export function createServer(): McpServer {
           },
         ],
         structuredContent: {
-          kind: "win-analysis",
+          kind: "odds-analysis",
           sourceType,
           overround,
           effectiveTakeout,
@@ -283,7 +283,7 @@ export function createServer(): McpServer {
           },
         ],
         structuredContent: {
-          kind: "exotic-ticket",
+          kind: "exotic-ticket-cost",
           wagerType,
           structure: wager.structure,
           base,

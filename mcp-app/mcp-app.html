@@ -2,15 +2,27 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="light dark">
-  <title>Tote Board Scanner</title>
+
+  <meta
+    name="description"
+    content="Analyze horse-racing tote odds and calculate exotic wager ticket costs."
+  >
+
+  <title>Tote Board Scanner | Edge Over Luck</title>
 </head>
 <body>
-  <main class="main">
-    <div id="app-root">
-      <p class="hint">Waiting for tool result…</p>
+  <main class="main" aria-labelledby="app-title">
+    <h1 id="app-title" class="visually-hidden">Tote Board Scanner</h1>
+
+    <div id="app-root" aria-live="polite" aria-busy="true">
+      <p class="hint" role="status">Waiting for analysis results…</p>
     </div>
+
+    <noscript>
+      <p>This application requires JavaScript to display analysis results.</p>
+    </noscript>
   </main>
   <script type="module" src="/src/mcp-app.ts"></script>
 </body>
