@@ -10,6 +10,7 @@ const {
   hasImageSignature,
   validateImagePayload,
   validateRequestMetadata,
+  verifyTurnstile,
 } = require("./security.js");
 
 function request(headers = {}) {
@@ -95,4 +96,32 @@ test("partial Turnstile configuration is detected", () => {
   const complete = getSecurityConfig({ TURNSTILE_SITE_KEY: "site", TURNSTILE_SECRET_KEY: "secret" });
   assert.equal(complete.turnstilePartiallyConfigured, false);
   assert.equal(complete.turnstileEnabled, true);
+});
+
+test("Turnstile requires the expected hostname and action", { concurrency: false }, async () => {
+  const config = getSecurityConfig({
+    TURNSTILE_SITE_KEY: "site",
+    TURNSTILE_SECRET_KEY: "secret",
+    TURNSTILE_EXPECTED_HOSTNAMES: "edgeoverluck.com",
+    TURNSTILE_EXPECTED_ACTION: "scan_odds",
+  });
+  const originalFetch = global.fetch;
+  try {
+    global.fetch = async () => ({
+      ok: true,
+      json: async () => ({ success: true, hostname: "edgeoverluck.com", action: "scan_odds" }),
+    });
+    await assert.doesNotReject(() => verifyTurnstile("valid-token", "203.0.113.10", config));
+
+    global.fetch = async () => ({
+      ok: true,
+      json: async () => ({ success: true, hostname: "edgeoverluck.com", action: "wrong_action" }),
+    });
+    await assert.rejects(
+      () => verifyTurnstile("valid-token", "203.0.113.10", config),
+      /verification failed/i,
+    );
+  } finally {
+    global.fetch = originalFetch;
+  }
 });
