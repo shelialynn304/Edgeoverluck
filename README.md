@@ -29,7 +29,7 @@ Built by Edge Over Luck. Every formula is validated by an automated Python math 
 Photo / screenshot
       │
       ▼
-Claude vision API → structured JSON (horse #, odds, confidence)
+Protected serverless proxy → Claude vision API → structured JSON
       │
       ▼
 User review & correction  ← low-confidence rows flagged for checking
@@ -38,9 +38,24 @@ User review & correction  ← low-confidence rows flagged for checking
 Client-side math engine → analysis table + ticket cost calculator
 ```
 
-- **Vision extraction** runs through the Anthropic API via a server-side proxy (API key never exposed to the browser).
-- **All math runs client-side** in vanilla JS — fast, private, no odds data stored.
+- **Vision extraction** runs through the Anthropic API via a protected server-side proxy; the API key is never exposed to the browser.
+- **All math runs client-side** in vanilla JS — fast, private, and no odds data is stored by this application.
 - **No accounts required.** Scan history is a planned premium feature.
+
+## Scanner API Protection
+
+The paid `/api/scan` endpoint is protected before it calls the vision provider:
+
+- Atomic per-IP fixed-window limits through Upstash Redis REST: **5/minute** and **20/hour** by default.
+- Daily quotas: **40 scans per IP** and **400 scans globally** by default.
+- IP addresses are SHA-256 hashed before they are used in Redis keys; raw addresses are not stored by the limiter.
+- Cross-site browser requests and unapproved `Origin` headers are rejected.
+- JSON content type, request length, base64 integrity, decoded image size, and image magic bytes are validated.
+- Optional Cloudflare Turnstile tokens are generated client-side and validated server-side, including expected action and hostname checks.
+- The limiter fails closed when Redis is unavailable or missing unless `SCAN_SECURITY_FAIL_OPEN=true` is explicitly set.
+- Anthropic requests have a timeout and internal provider errors are not exposed to clients.
+
+The limits are environment-configurable. See `.env.example` for every available setting.
 
 ## The Math
 
@@ -56,7 +71,8 @@ All formulas are tested in a Python verifier pipeline via GitHub Actions. No mat
 
 - **Frontend:** HTML / CSS / vanilla JS, Edge Over Luck dark/gold design system, mobile-first
 - **AI:** Anthropic Claude API (vision) via serverless proxy
-- **QA:** Python math verifier + GitHub Actions (runs on every pull request)
+- **Abuse protection:** Upstash Redis REST quotas; optional Cloudflare Turnstile
+- **QA:** Python math verifier, Node security tests, and GitHub Actions
 - **SEO:** SoftwareApplication + FAQPage structured data
 
 ## Project Structure
@@ -66,7 +82,7 @@ All formulas are tested in a Python verifier pipeline via GitHub Actions. No mat
 ├── index.html          # Scanner page
 ├── css/                # Design system styles
 ├── js/
-│   ├── vision.js       # API proxy calls + JSON parsing
+│   ├── vision.js       # Security challenge + API proxy calls + JSON parsing
 │   ├── odds.js         # Odds format parsing (fractional, dash, EVEN, etc.)
 │   ├── analysis.js     # Implied prob, overround, fair odds, overlays
 │   ├── exotics.js      # Ticket cost enumeration engine
@@ -75,20 +91,37 @@ All formulas are tested in a Python verifier pipeline via GitHub Actions. No mat
 │   ├── blackjack.js    # Approximate house-edge estimate
 │   └── slots.js        # Expected-loss estimate (given caller-supplied RTP)
 ├── api/
-│   └── scan.js         # Serverless proxy for Anthropic API
+│   ├── scan.js         # Protected serverless proxy for Anthropic API
+│   ├── scan-config.js  # Public client security configuration
+│   ├── security.js     # Validation, rate limits, quotas, Turnstile verification
+│   └── *.test.js       # Node security and endpoint tests
 ├── verifier/
 │   └── *.py            # Python math validation suite (mirrors every js/*.js module above)
 ├── mcp-app/            # MCP App: Edge Over Luck tools (odds analysis, exotic tickets, bankroll,
 │                       # roulette, blackjack, slots) as MCP tools with interactive UI
-└── .github/workflows/  # CI: math verification on every PR
+└── .github/workflows/  # CI: math and scanner-security verification
 ```
 
 ## Setup
 
-1. Clone the repo
-2. Set `ANTHROPIC_API_KEY` as an environment variable for the serverless proxy (never commit it)
-3. Deploy the `api/` proxy to your serverless platform of choice
-4. Serve the static frontend from the site
+1. Clone the repo.
+2. Copy `.env.example` into your deployment platform's environment settings.
+3. Set `ANTHROPIC_API_KEY`.
+4. Create an Upstash Redis database and set `UPSTASH_REDIS_REST_URL` and the standard read/write `UPSTASH_REDIS_REST_TOKEN`.
+5. Recommended: create a Cloudflare Turnstile widget for `edgeoverluck.com`, then set both Turnstile keys.
+6. Deploy the `api/` functions and serve the static frontend from the same origin.
+
+The production endpoint intentionally returns `503 security_not_configured` when Redis credentials are missing. For local-only development, set `SCAN_SECURITY_DISABLED=true`; never use that setting in production.
+
+### Default limits
+
+| Setting | Default |
+|---|---:|
+| `SCAN_RATE_LIMIT_PER_MINUTE` | 5 |
+| `SCAN_RATE_LIMIT_PER_HOUR` | 20 |
+| `SCAN_DAILY_IP_QUOTA` | 40 |
+| `SCAN_DAILY_GLOBAL_QUOTA` | 400 |
+| `SCAN_MAX_IMAGE_BYTES` | 8 MiB |
 
 ## Roadmap
 
@@ -103,6 +136,7 @@ All formulas are tested in a Python verifier pipeline via GitHub Actions. No mat
 - Board odds are rounded; probability ranges reflect that.
 - Model-based exotic probabilities are estimates, labeled as such.
 - This tool provides math analysis, **not picks or guarantees**.
+- IP-based quotas can affect people sharing the same public network.
 - Check your track's phone-use policies; screenshots and programs are the primary supported inputs.
 
 ## About Edge Over Luck
