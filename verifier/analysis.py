@@ -24,15 +24,17 @@ class WinAnalysis:
     effective_takeout: float = 0.0
 
 
-def compute_win_analysis(horses) -> WinAnalysis:
-    """horses: list of {"number": int, "fractional_odds": float,
-    "source_type": str} -- source_type is per-horse, matching js/analysis.js,
-    where each row carries its own sourceType into impliedProbRange."""
+def compute_win_analysis(horses, source_type: str = "adw_screenshot") -> WinAnalysis:
+    """horses: list of {"number": int, "fractional_odds": float, and optional
+    per-row "source_type"} -- per-row source_type wins, matching
+    js/analysis.js where each row carries its own sourceType into
+    impliedProbRange; the function-level source_type is the scan-level
+    fallback for rows without one (and preserves the pre-range signature)."""
     prepped = []
     for h in horses:
         decimal_odds = to_decimal_odds(h["fractional_odds"])
         q = implied_probability(decimal_odds)
-        rng = implied_prob_range(h["fractional_odds"], h.get("source_type", "adw_screenshot"))
+        rng = implied_prob_range(h["fractional_odds"], h.get("source_type", source_type))
         prepped.append({**h, "decimal_odds": decimal_odds, "q": q, "range": rng})
 
     overround = sum(h["q"] for h in prepped)

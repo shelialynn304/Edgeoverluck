@@ -79,3 +79,17 @@ def test_compute_win_analysis_carries_tote_board_range():
 
     assert adw.range.is_range is False
     assert adw.range.low == adw.range.high == pytest.approx(1 / 3.5)
+
+
+def test_compute_win_analysis_scan_level_source_type_fallback():
+    # The function-level source_type (pre-range signature, still accepted)
+    # applies to rows without their own source_type; a per-row value wins.
+    horses = [
+        {"number": 1, "fractional_odds": 2.5},
+        {"number": 2, "fractional_odds": 2.5, "source_type": "adw_screenshot"},
+    ]
+    result = compute_win_analysis(horses, source_type="tote_board")
+
+    fallback, per_row = result.horses
+    assert fallback.range.is_range is True
+    assert per_row.range.is_range is False
