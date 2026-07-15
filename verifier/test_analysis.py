@@ -54,3 +54,28 @@ def test_compute_overlay_zero_edge_is_not_overlay():
     overlay = compute_overlay(0.5, 2.0)
     assert overlay.edge == pytest.approx(0.0)
     assert overlay.is_overlay is False
+
+
+def test_compute_overlay_missing_or_nan_returns_none():
+    # Mirrors js/analysis.js: computeOverlay returns null for null/undefined/NaN.
+    assert compute_overlay(None, 2.0) is None
+    assert compute_overlay(float("nan"), 2.0) is None
+
+
+def test_compute_win_analysis_carries_tote_board_range():
+    # Mirrors js/analysis.js: each result row carries impliedProbRange for its
+    # own source_type. Board 5/2 -> point 1/3.5 (best case), low 1/4 (next
+    # increment 3/1 -> decimal 4, worst case).
+    horses = [
+        {"number": 1, "fractional_odds": 2.5, "source_type": "tote_board"},
+        {"number": 2, "fractional_odds": 2.5, "source_type": "adw_screenshot"},
+    ]
+    result = compute_win_analysis(horses)
+
+    tote, adw = result.horses
+    assert tote.range.is_range is True
+    assert tote.range.high == pytest.approx(1 / 3.5)
+    assert tote.range.low == pytest.approx(1 / 4)
+
+    assert adw.range.is_range is False
+    assert adw.range.low == adw.range.high == pytest.approx(1 / 3.5)
