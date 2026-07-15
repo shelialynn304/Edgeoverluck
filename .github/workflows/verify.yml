@@ -21,6 +21,6 @@ jobs:
         with:
           node-version: "22"
       - name: Check scanner security JavaScript
-        run: node --check api/security.js && node --check api/scan.js && node --check api/scan-config.js
+        run: node --check api/security.js && node --check api/scan.js && node --check api/scan-config.js && node --input-type=module --check < js/vision.js
       - name: Test scanner security
         run: node --test api/security.test.js api/scan.test.js
