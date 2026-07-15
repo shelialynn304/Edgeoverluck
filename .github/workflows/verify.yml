@@ -1,4 +1,4 @@
-name: Math Verifier
+name: Verification
 
 on:
   pull_request:
@@ -13,7 +13,14 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: Install dependencies
+      - name: Install Python dependencies
         run: pip install -r verifier/requirements.txt
       - name: Run math verifier
         run: python -m pytest verifier/ -v
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Check scanner security JavaScript
+        run: node --check api/security.js && node --check api/scan.js && node --check api/scan-config.js
+      - name: Test scanner security
+        run: node --test api/security.test.js api/scan.test.js
