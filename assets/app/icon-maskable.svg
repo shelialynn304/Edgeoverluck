@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="Edge Over Luck">
+  <defs>
+    <linearGradient id="gold" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#f6d47c"/>
+      <stop offset="1" stop-color="#d4a93d"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.5" cy="0.28" r="0.75">
+      <stop offset="0" stop-color="#f1c45b" stop-opacity="0.16"/>
+      <stop offset="1" stop-color="#f1c45b" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#151a24"/>
+      <stop offset="1" stop-color="#0f1115"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Full-bleed background: the platform mask supplies the shape -->
+  <rect width="512" height="512" fill="url(#bg)"/>
+  <rect width="512" height="512" fill="url(#glow)"/>
+
+  <!-- Same mark, scaled into the 80% safe zone -->
+  <g transform="translate(256 256) scale(0.78) translate(-256 -256)">
+    <path d="M 158 146 v 134 a 98 98 0 0 0 196 0 v -134"
+          fill="none" stroke="url(#gold)" stroke-width="54" stroke-linecap="round"/>
+    <circle cx="158" cy="210" r="10" fill="#0f1115"/>
+    <circle cx="354" cy="210" r="10" fill="#0f1115"/>
+    <circle cx="184" cy="330" r="10" fill="#0f1115"/>
+    <circle cx="328" cy="330" r="10" fill="#0f1115"/>
+    <circle cx="256" cy="378" r="10" fill="#0f1115"/>
+    <path d="M 256 88 l 9 22 22 9 -22 9 -9 22 -9 -22 -22 -9 22 -9 z" fill="#f6d47c"/>
+  </g>
+</svg>
