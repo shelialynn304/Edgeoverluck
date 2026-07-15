@@ -1,17 +1,26 @@
-// Serverless proxy for the Anthropic vision API. Deploy this file as a
-// serverless function (e.g. Vercel's /api convention). The Anthropic API
-// key lives only in the function's environment — never sent to the client.
+// Serverless proxy for the Anthropic vision API. The paid API key remains
+// server-side. Requests are validated, rate-limited, quota-capped, and can be
+// protected with Cloudflare Turnstile before the vision service is called.
+
+const {
+  SecurityError,
+  applyLimitHeaders,
+  buildDailyQuotaLimits,
+  buildIpRateLimits,
+  consumeFixedWindows,
+  getClientIp,
+  getSecurityConfig,
+  hashIdentifier,
+  makeRequestId,
+  setSecurityHeaders,
+  validateImagePayload,
+  validateRequestMetadata,
+  verifyTurnstile,
+} = require("./security.js");
 
 const ANTHROPIC_API_URL = "https://api.anthropic.com/v1/messages";
 const MODEL = "claude-sonnet-5";
-const MAX_IMAGE_BYTES = 8 * 1024 * 1024; // 8MB, well under the API's limit
-
-const ALLOWED_MEDIA_TYPES = new Set([
-  "image/jpeg",
-  "image/png",
-  "image/webp",
-  "image/gif",
-]);
+const ANTHROPIC_TIMEOUT_MS = 45_000;
 
 const SYSTEM_PROMPT = `You are an odds-board reader for horse racing. Extract every horse number
 and its displayed odds from the image. Respond with ONLY valid JSON, no
@@ -44,7 +53,7 @@ Rules:
   banding. Never guess a digit silently.`;
 
 function sendJson(res, status, body) {
-  res.status(status).json(body);
+  return res.status(status).json(body);
 }
 
 function extractJson(text) {
@@ -54,32 +63,13 @@ function extractJson(text) {
   return JSON.parse(candidate);
 }
 
-module.exports = async function handler(req, res) {
-  if (req.method !== "POST") {
-    return sendJson(res, 405, { error: "Method not allowed" });
-  }
-
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) {
-    return sendJson(res, 500, { error: "Server is not configured. Missing API key." });
-  }
-
-  const { image_base64: imageBase64, media_type: mediaType } = req.body || {};
-
-  if (!imageBase64 || typeof imageBase64 !== "string") {
-    return sendJson(res, 400, { error: "No image provided." });
-  }
-  if (!ALLOWED_MEDIA_TYPES.has(mediaType)) {
-    return sendJson(res, 400, { error: "Unsupported image type." });
-  }
-  if (imageBase64.length > MAX_IMAGE_BYTES * 1.4) {
-    return sendJson(res, 400, { error: "Image is too large." });
-  }
-
-  let anthropicResponse;
+async function fetchAnthropic(apiKey, imageBase64, mediaType) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), ANTHROPIC_TIMEOUT_MS);
   try {
-    anthropicResponse = await fetch(ANTHROPIC_API_URL, {
+    return await fetch(ANTHROPIC_API_URL, {
       method: "POST",
+      signal: controller.signal,
       headers: {
         "Content-Type": "application/json",
         "x-api-key": apiKey,
@@ -103,32 +93,108 @@ module.exports = async function handler(req, res) {
         ],
       }),
     });
-  } catch (err) {
-    return sendJson(res, 502, { error: "Could not reach the vision service." });
+  } finally {
+    clearTimeout(timeout);
   }
+}
 
-  if (!anthropicResponse.ok) {
-    return sendJson(res, 502, { error: "Vision service returned an error." });
-  }
+module.exports = async function handler(req, res) {
+  const requestId = makeRequestId();
+  setSecurityHeaders(res, requestId);
 
-  let anthropicBody;
   try {
-    anthropicBody = await anthropicResponse.json();
-  } catch (err) {
-    return sendJson(res, 502, { error: "Vision service returned an unreadable response." });
-  }
+    if (req.method !== "POST") {
+      res.setHeader("Allow", "POST");
+      return sendJson(res, 405, { error: "Method not allowed", code: "method_not_allowed" });
+    }
 
-  const textBlock = (anthropicBody.content || []).find((b) => b.type === "text");
-  if (!textBlock) {
-    return sendJson(res, 502, { error: "Vision service returned no content." });
-  }
+    const config = getSecurityConfig();
+    validateRequestMetadata(req, config);
 
-  let extracted;
-  try {
-    extracted = extractJson(textBlock.text);
-  } catch (err) {
-    return sendJson(res, 502, { error: "Could not parse the extraction result." });
-  }
+    const apiKey = process.env.ANTHROPIC_API_KEY;
+    if (!apiKey) {
+      throw new SecurityError("Server is not configured. Missing API key.", 503, "anthropic_not_configured");
+    }
 
-  return sendJson(res, 200, extracted);
+    const body = req.body && typeof req.body === "object" ? req.body : {};
+    const imageBase64 = body.image_base64;
+    const mediaType = body.media_type;
+    const { normalizedBase64 } = validateImagePayload(imageBase64, mediaType, config);
+
+    const ip = getClientIp(req);
+    const ipHash = hashIdentifier(ip);
+    const now = Date.now();
+
+    const rateResult = await consumeFixedWindows(config, buildIpRateLimits(ipHash, now, config));
+    if (!rateResult.allowed) {
+      throw new SecurityError("Too many scan attempts. Try again later.", 429, "rate_limited", {
+        retryAfter: rateResult.retryAfter,
+      });
+    }
+    applyLimitHeaders(res, rateResult, "X-RateLimit");
+
+    await verifyTurnstile(body.turnstile_token, ip, config);
+
+    const quotaResult = await consumeFixedWindows(config, buildDailyQuotaLimits(ipHash, now, config));
+    if (!quotaResult.allowed) {
+      const isGlobal = quotaResult.blocked && quotaResult.blocked.name === "global-daily";
+      throw new SecurityError(
+        isGlobal
+          ? "The scanner has reached today's service limit. Try again tomorrow."
+          : "You have reached today's scan limit. Try again tomorrow.",
+        429,
+        isGlobal ? "global_quota_exceeded" : "daily_quota_exceeded",
+        { retryAfter: quotaResult.retryAfter },
+      );
+    }
+    applyLimitHeaders(res, quotaResult, "X-DailyQuota");
+
+    let anthropicResponse;
+    try {
+      anthropicResponse = await fetchAnthropic(apiKey, normalizedBase64, mediaType);
+    } catch (error) {
+      console.error("Vision service request failed", { requestId, reason: error && error.name });
+      return sendJson(res, 502, { error: "Could not reach the vision service.", code: "vision_unavailable" });
+    }
+
+    if (!anthropicResponse.ok) {
+      console.error("Vision service returned an error", { requestId, status: anthropicResponse.status });
+      return sendJson(res, 502, { error: "Vision service returned an error.", code: "vision_error" });
+    }
+
+    let anthropicBody;
+    try {
+      anthropicBody = await anthropicResponse.json();
+    } catch {
+      return sendJson(res, 502, {
+        error: "Vision service returned an unreadable response.",
+        code: "vision_bad_response",
+      });
+    }
+
+    const textBlock = (anthropicBody.content || []).find((block) => block.type === "text");
+    if (!textBlock || typeof textBlock.text !== "string") {
+      return sendJson(res, 502, { error: "Vision service returned no content.", code: "vision_no_content" });
+    }
+
+    let extracted;
+    try {
+      extracted = extractJson(textBlock.text);
+    } catch {
+      return sendJson(res, 502, {
+        error: "Could not parse the extraction result.",
+        code: "vision_parse_error",
+      });
+    }
+
+    return sendJson(res, 200, extracted);
+  } catch (error) {
+    if (error instanceof SecurityError) {
+      if (error.retryAfter) res.setHeader("Retry-After", String(error.retryAfter));
+      return sendJson(res, error.status, { error: error.message, code: error.code });
+    }
+
+    console.error("Unexpected scanner error", { requestId, reason: error && error.message });
+    return sendJson(res, 500, { error: "Unexpected scanner error.", code: "internal_error" });
+  }
 };
