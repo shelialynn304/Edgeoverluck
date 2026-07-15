@@ -389,8 +389,9 @@ async function verifyTurnstile(token, ip, config) {
     throw new SecurityError("Security verification returned an invalid response.", 503, "verification_unavailable");
   }
 
-  const hostnameAllowed = !payload.hostname || config.allowedHostnames.includes(payload.hostname);
-  const actionAllowed = !payload.action || payload.action === config.turnstileAction;
+  const hostnameAllowed =
+    config.allowedHostnames.length === 0 || config.allowedHostnames.includes(payload.hostname);
+  const actionAllowed = !config.turnstileAction || payload.action === config.turnstileAction;
   if (!response.ok || !payload.success || !hostnameAllowed || !actionAllowed) {
     throw new SecurityError("Security verification failed. Please try again.", 403, "verification_failed");
   }
