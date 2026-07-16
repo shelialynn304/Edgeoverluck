@@ -2,7 +2,7 @@
   "name": "Edge Over Luck — Tote Board Scanner",
   "short_name": "Tote Scanner",
   "description": "Scan a horse racing odds board for instant implied probability, effective takeout, fair odds, and exotic ticket cost math.",
-  "start_url": "./",
+  "start_url": "tote-board-scanner.html",
   "scope": "./",
   "display": "standalone",
   "orientation": "portrait",
