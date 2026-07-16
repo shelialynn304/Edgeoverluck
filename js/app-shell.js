@@ -34,11 +34,13 @@
     });
   }
 
+  const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
+
   tabs.forEach((tab) => {
     tab.addEventListener("click", () => {
       const el = panelEl(tab.dataset.target);
       if (!el || el.classList.contains("hidden")) return;
-      el.scrollIntoView({ behavior: "smooth", block: "start" });
+      el.scrollIntoView({ behavior: reducedMotion.matches ? "auto" : "smooth", block: "start" });
     });
   });
 
