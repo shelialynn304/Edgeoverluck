@@ -11,8 +11,14 @@
 
     gtag('config', 'G-SLW7YE234T');
   </script>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <meta name="robots" content="index, follow" />
+  <meta name="theme-color" content="#0f1115" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Tote Scanner" />
+  <link rel="manifest" href="manifest.webmanifest" />
   <title>Tote Board Scanner | AI Horse Racing Odds Analyzer | EdgeOverLuck.com</title>
   <meta name="description" content="Snap a photo of any tote board, ADW screen, TV graphic, or program and get instant verified math: implied probability, effective takeout, fair odds, and exotic ticket costs." />
   <meta property="og:title" content="Tote Board Scanner | Edge Over Luck" />
@@ -25,9 +31,9 @@
   <meta name="twitter:description" content="Scan a horse racing odds board for instant implied probability, effective takeout, fair odds, and exotic ticket cost math." />
   <meta name="twitter:image" content="https://edgeoverluck.com/assets/images/edgeoverluck-casino-calculator-hero.webp" />
   <link rel="canonical" href="https://edgeoverluck.com/tote-board-scanner.html" />
-  <link rel="icon" type="image/png" sizes="32x32" href="assets/images/logo/favicon-32.png" />
-  <link rel="icon" type="image/png" sizes="192x192" href="assets/images/logo/favicon-192.png" />
-  <link rel="apple-touch-icon" href="assets/images/logo/apple-touch-icon.png" />
+  <link rel="icon" type="image/svg+xml" href="assets/app/icon.svg" />
+  <link rel="icon" type="image/png" sizes="192x192" href="assets/app/icon-192.png" />
+  <link rel="apple-touch-icon" href="assets/app/icon-192.png" />
   <link rel="stylesheet" href="css/style.css" />
   <link rel="stylesheet" href="css/scanner.css" />
 
@@ -116,8 +122,9 @@
 <body class="horse-page scanner-tool-page" data-tool-name="tote-board-scanner">
   <header class="site-header">
     <div class="container nav site-nav">
-      <a href="index.html" class="brand brand-logo" aria-label="Edge Over Luck home">
-        <img src="assets/images/logo/edgeoverluck-logo-horizontal.svg" alt="Edge Over Luck" width="240" height="64">
+      <a href="index.html" class="brand brand-logo app-brand" aria-label="Edge Over Luck home">
+        <img src="assets/app/icon.svg" alt="" width="34" height="34" class="app-brand-icon">
+        <span class="app-brand-name">Edge Over Luck</span>
       </a>
       <button class="nav-toggle" type="button" aria-controls="primary-nav" aria-expanded="false">
         <span class="nav-toggle-bars" aria-hidden="true"></span>
@@ -190,38 +197,33 @@
   </header>
 
   <main>
-    <section class="page-hero">
-      <div class="container page-hero-split">
-        <div class="page-hero-copy">
-          <p class="eyebrow">Horse Racing Tool</p>
-          <h1 class="page-hero-title">Tote Board Scanner</h1>
-          <p class="page-hero-subtitle">
-            Snap a photo of any odds display and get instant verified math.
-          </p>
-          <p class="page-hero-text">
-            Tote board, ADW app, TV graphic, or racing program &mdash; scan it and get implied win probability,
-            effective takeout, fair odds, and exotic ticket costs. No picks. No guarantees. Just the math, verified.
-          </p>
-          <div class="hero-actions">
-            <a class="btn" href="#scanner">Scan the Board</a>
-            <a class="btn btn-secondary" href="takeout-overlay-calculator.html">Takeout &amp; Overlay Calculator</a>
-          </div>
-        </div>
-        <aside class="card glass-card-strong">
-          <h2 class="section-title mt-0">Honest by design</h2>
-          <p>
-            A scan is a <strong>snapshot</strong>, not a live feed &mdash; tote odds move until post. Board prices are
-            displayed rounded down, so implied probability shows as a range, not false precision.
-          </p>
-          <p class="mb-0">
-            You confirm every extracted number before any math runs. Nothing gets analyzed on unverified OCR.
-          </p>
-        </aside>
+    <section class="page-hero app-hero">
+      <div class="container">
+        <p class="eyebrow">Horse Racing Tool</p>
+        <h1 class="page-hero-title">Tote Board Scanner</h1>
+        <p class="page-hero-subtitle">
+          Snap a photo of any odds display and get instant verified math.
+        </p>
       </div>
     </section>
 
     <section class="section" id="scanner">
       <div class="container">
+
+        <ol class="app-steps" id="app-steps" aria-label="Scanner progress">
+          <li class="app-step is-current" data-step-for="upload-panel">
+            <span class="app-step-dot">1</span><span class="app-step-label">Scan</span>
+          </li>
+          <li class="app-step" data-step-for="review-panel">
+            <span class="app-step-dot">2</span><span class="app-step-label">Confirm</span>
+          </li>
+          <li class="app-step" data-step-for="results-panel">
+            <span class="app-step-dot">3</span><span class="app-step-label">Analysis</span>
+          </li>
+          <li class="app-step" data-step-for="exotics-panel">
+            <span class="app-step-dot">4</span><span class="app-step-label">Tickets</span>
+          </li>
+        </ol>
 
         <article class="card glass-card-strong scanner-panel" id="upload-panel">
           <h2 class="section-title">1. Scan the board</h2>
@@ -345,6 +347,25 @@
     </section>
 
     <section class="section">
+      <div class="container">
+        <details class="card glass-card-strong app-about">
+          <summary>About this tool &amp; how it stays honest</summary>
+          <p>
+            Tote board, ADW app, TV graphic, or racing program &mdash; scan it and get implied win probability,
+            effective takeout, fair odds, and exotic ticket costs. No picks. No guarantees. Just the math, verified.
+          </p>
+          <p>
+            A scan is a <strong>snapshot</strong>, not a live feed &mdash; tote odds move until post. Board prices are
+            displayed rounded down, so implied probability shows as a range, not false precision.
+          </p>
+          <p class="mb-0">
+            You confirm every extracted number before any math runs. Nothing gets analyzed on unverified OCR.
+          </p>
+        </details>
+      </div>
+    </section>
+
+    <section class="section">
       <div class="container grid grid-2">
         <article class="card warning-box glass-panel">
           <h2 class="section-title">What this tool does not do</h2>
@@ -445,7 +466,31 @@
     </div>
   </footer>
 
+  <nav class="app-tabbar" aria-label="Scanner sections">
+    <button type="button" class="app-tab is-active" data-target="upload-panel">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M4 8h2.2l1.4-2.2h8.8L17.8 8H20a1.5 1.5 0 0 1 1.5 1.5V18A1.5 1.5 0 0 1 20 19.5H4A1.5 1.5 0 0 1 2.5 18V9.5A1.5 1.5 0 0 1 4 8Z"/>
+        <circle cx="12" cy="13.4" r="3.4"/>
+      </svg>
+      <span>Scan</span>
+    </button>
+    <button type="button" class="app-tab" data-target="results-panel" disabled>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M4 20V10M10 20V4M16 20v-8M21 20H3"/>
+      </svg>
+      <span>Analysis</span>
+    </button>
+    <button type="button" class="app-tab" data-target="exotics-panel" disabled>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M3.5 9V6.5A1.5 1.5 0 0 1 5 5h14a1.5 1.5 0 0 1 1.5 1.5V9a3 3 0 0 0 0 6v2.5A1.5 1.5 0 0 1 19 19H5a1.5 1.5 0 0 1-1.5-1.5V15a3 3 0 0 0 0-6Z"/>
+        <path d="M14 5v2.6M14 11.2v1.6M14 16.4V19" stroke-dasharray="0.1 3.2"/>
+      </svg>
+      <span>Tickets</span>
+    </button>
+  </nav>
+
   <script src="nav.js" defer></script>
   <script type="module" src="js/app.js"></script>
+  <script src="js/app-shell.js" defer></script>
 </body>
 </html>

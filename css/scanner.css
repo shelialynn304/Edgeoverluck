@@ -192,3 +192,305 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* ------------------------------------------------------------------ */
+/* App shell — makes this page feel like an installed app rather than  */
+/* a website. All rules stay scoped to .scanner-tool-page.             */
+/* ------------------------------------------------------------------ */
+
+.scanner-tool-page {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Compact, app-style top bar */
+.scanner-tool-page .site-header {
+  background: rgba(12, 15, 20, 0.78);
+  backdrop-filter: blur(16px) saturate(1.4);
+  -webkit-backdrop-filter: blur(16px) saturate(1.4);
+  padding-top: env(safe-area-inset-top);
+}
+
+.scanner-tool-page .nav {
+  min-height: 56px;
+}
+
+.scanner-tool-page .app-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  user-select: none;
+}
+
+.scanner-tool-page .app-brand .app-brand-icon {
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.4);
+}
+
+.scanner-tool-page .app-brand-name {
+  font-size: 1.02rem;
+  font-weight: 800;
+  color: var(--text);
+  letter-spacing: 0.2px;
+  white-space: nowrap;
+}
+
+/* Keep the brand and menu toggle on one row, app-bar style */
+.scanner-tool-page .nav-toggle {
+  width: auto;
+  flex: 0 0 auto;
+  margin-left: auto;
+}
+
+/* Compact hero: a title bar, not a marketing splash */
+.scanner-tool-page .app-hero {
+  padding: 10px 0 0;
+  background: none;
+  border-bottom: none;
+}
+
+.scanner-tool-page .app-hero::before,
+.scanner-tool-page .app-hero::after {
+  display: none;
+}
+
+.scanner-tool-page .app-hero .container {
+  padding-top: 18px;
+  padding-bottom: 0;
+}
+
+.scanner-tool-page .app-hero .eyebrow {
+  font-size: 0.7rem;
+  padding: 5px 10px;
+  margin-bottom: 10px;
+}
+
+.scanner-tool-page .app-hero .page-hero-title {
+  text-align: left;
+  font-size: clamp(1.7rem, 3.4vw, 2.4rem);
+  margin-bottom: 6px;
+}
+
+.scanner-tool-page .app-hero .page-hero-subtitle {
+  color: var(--muted);
+  font-size: 1rem;
+  margin: 0;
+  max-width: 640px;
+}
+
+/* Tighter section rhythm (app density, not article spacing) */
+.scanner-tool-page #scanner.section {
+  padding: 18px 0 28px;
+}
+
+.scanner-tool-page #scanner .container {
+  padding-top: 0;
+  padding-bottom: 24px;
+}
+
+/* Step indicator */
+.scanner-tool-page .app-steps {
+  display: flex;
+  gap: 6px;
+  list-style: none;
+  padding: 0;
+  margin: 0 0 18px;
+}
+
+.scanner-tool-page .app-step {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  position: relative;
+  padding: 10px 4px 8px;
+  border-radius: var(--radius-sm);
+  background: var(--glass-bg);
+  border: 1px solid var(--border);
+  user-select: none;
+  transition: border-color var(--transition-smooth), background var(--transition-smooth);
+}
+
+.scanner-tool-page .app-step-dot {
+  width: 26px;
+  height: 26px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 800;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--muted);
+  transition: background var(--transition-smooth), color var(--transition-smooth);
+}
+
+.scanner-tool-page .app-step-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--muted);
+}
+
+.scanner-tool-page .app-step.is-current {
+  border-color: var(--border-strong);
+  background: rgba(241, 196, 91, 0.08);
+}
+
+.scanner-tool-page .app-step.is-current .app-step-dot {
+  background: var(--gold);
+  color: #0b0b0d;
+}
+
+.scanner-tool-page .app-step.is-current .app-step-label {
+  color: var(--gold);
+}
+
+.scanner-tool-page .app-step.is-done .app-step-dot {
+  background: rgba(88, 214, 141, 0.18);
+  color: var(--success);
+}
+
+/* Bottom tab bar (mobile app navigation) */
+.scanner-tool-page .app-tabbar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 1000;
+  display: flex;
+  justify-content: space-around;
+  background: rgba(12, 15, 20, 0.82);
+  backdrop-filter: blur(18px) saturate(1.4);
+  -webkit-backdrop-filter: blur(18px) saturate(1.4);
+  border-top: 1px solid var(--border);
+  padding: 6px 8px calc(6px + env(safe-area-inset-bottom));
+}
+
+.scanner-tool-page .app-tab {
+  flex: 1;
+  max-width: 160px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 7px 4px 5px;
+  background: none;
+  border: 0;
+  border-radius: var(--radius-sm);
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  cursor: pointer;
+  user-select: none;
+  transition: color var(--transition-smooth), transform var(--transition-smooth);
+}
+
+.scanner-tool-page .app-tab svg {
+  width: 23px;
+  height: 23px;
+}
+
+.scanner-tool-page .app-tab.is-active {
+  color: var(--gold);
+}
+
+.scanner-tool-page .app-tab:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.scanner-tool-page .app-tab:not(:disabled):active {
+  transform: scale(0.94);
+}
+
+/* Reserve room above the tab bar */
+.scanner-tool-page main {
+  padding-bottom: calc(76px + env(safe-area-inset-bottom));
+}
+
+/* Keep scrolled-to panels clear of the sticky app bar */
+.scanner-tool-page .scanner-panel {
+  scroll-margin-top: calc(72px + env(safe-area-inset-top));
+}
+
+/* Pressed feedback on primary actions (app feel) */
+.scanner-tool-page .btn:active,
+.scanner-tool-page .grid-toggle:active,
+.scanner-tool-page .upload-area:active {
+  transform: scale(0.98);
+}
+
+.scanner-tool-page .btn,
+.scanner-tool-page .grid-toggle,
+.scanner-tool-page .upload-area {
+  transition: transform 120ms ease, border-color var(--transition-smooth), background var(--transition-smooth);
+}
+
+/* About collapsible */
+.scanner-tool-page .app-about summary {
+  cursor: pointer;
+  font-weight: 700;
+  user-select: none;
+}
+
+.scanner-tool-page .app-about[open] summary {
+  margin-bottom: 12px;
+  color: var(--gold);
+}
+
+/* Slimmer, quieter footer on the app surface */
+@media (max-width: 760px) {
+  .scanner-tool-page .site-footer {
+    font-size: 0.8rem;
+  }
+
+  .scanner-tool-page .footer-links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 14px;
+  }
+
+  .scanner-tool-page .section {
+    padding: 26px 0;
+  }
+
+  .scanner-tool-page .section .container {
+    padding-top: 0;
+    padding-bottom: 16px;
+  }
+}
+
+/* Desktop: bottom tabs are a phone pattern — hide and restore breathing room */
+@media (min-width: 769px) {
+  .scanner-tool-page .app-tabbar {
+    display: none;
+  }
+
+  .scanner-tool-page main {
+    padding-bottom: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .scanner-tool-page .btn,
+  .scanner-tool-page .grid-toggle,
+  .scanner-tool-page .upload-area,
+  .scanner-tool-page .app-tab,
+  .scanner-tool-page .app-step,
+  .scanner-tool-page .app-step-dot {
+    transition: none;
+  }
+
+  .scanner-tool-page .btn:active,
+  .scanner-tool-page .grid-toggle:active,
+  .scanner-tool-page .upload-area:active,
+  .scanner-tool-page .app-tab:not(:disabled):active {
+    transform: none;
+  }
+}
